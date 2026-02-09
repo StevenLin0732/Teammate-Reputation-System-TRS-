@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}TRS · Login{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <h1 class="h4 mb-1">Choose a user</h1>
+          <p class="text-muted mb-4">This is a demo login. No password required.</p>
+
+          <form method="post" action="{{ url_for('login', next=request.args.get('next')) }}">
+            <div class="mb-3">
+              <label class="form-label" for="user_id">User</label>
+              <select class="form-select" id="user_id" name="user_id" required>
+                <option value="" selected disabled>Pick a user…</option>
+                {% for u in users %}
+                  <option value="{{ u.id }}">{{ u.name }}{% if u.major %} · {{ u.major }}{% endif %}{% if u.year %} · {{ u.year }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="d-grid">
+              <button class="btn btn-primary" type="submit">Continue</button>
+            </div>
+          </form>
+
+          {% if users|length == 0 %}
+            <div class="alert alert-warning mt-4 mb-0">No users found. Run the seed script first.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

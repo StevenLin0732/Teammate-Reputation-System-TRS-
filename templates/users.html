@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}TRS · Users{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">Users</h1>
+      <div class="text-muted">Seeded users in the demo database.</div>
+    </div>
+    <span class="badge text-bg-secondary">{{ users|length }} total</span>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 80px;">ID</th>
+            <th>Name</th>
+            <th>Major</th>
+            <th>Year</th>
+            <th>Reputation</th>
+            <th>Contact</th>
+            <th style="width: 180px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+            {% set rep = rep_by_id.get(u.id) %}
+            <tr>
+              <td class="text-muted">{{ u.id }}</td>
+              <td class="fw-semibold">{{ u.name }}</td>
+              <td>{{ u.major or '—' }}</td>
+              <td>{{ u.year or '—' }}</td>
+              <td>
+                <div class="small">
+                  <span class="text-muted">Contrib</span>
+                  <span class="fw-semibold">{{ rep.contribution_avg if rep else 0 }}</span>
+                  · <span class="text-muted">Comm</span>
+                  <span class="fw-semibold">{{ rep.communication_avg if rep else 0 }}</span>
+                  · <span class="text-muted">WWA</span>
+                  <span class="fw-semibold">
+                    {% if rep and rep.would_work_again_ratio is not none %}{{ (rep.would_work_again_ratio * 100) | round(0) }}%{% else %}—{% endif %}
+                  </span>
+                  <span class="text-muted">(n={{ rep.rating_count if rep else 0 }})</span>
+                </div>
+              </td>
+              <td class="text-muted">{{ u.email or u.phone or u.contact or '—' }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('user_profile', user_id=u.id) }}">View profile</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">No users found. Run the seed script to populate the DB.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

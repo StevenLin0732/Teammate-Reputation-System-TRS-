@@ -1,18 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Hello world template</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
-</head>
-<body>
+{% extends 'base.html' %}
 
-<div>
+{% block title %}TRS · Home{% endblock %}
 
-    <h1>Hello, world!</h1>
+{% block content %}
+    <div class="p-4 p-md-5 mb-4 bg-white border rounded-3 shadow-sm">
+        <div class="col-lg-9">
+            <h1 class="display-6 fw-semibold mb-2">Teammate Reputation System (TRS)</h1>
+            <p class="lead text-muted mb-4">
+                A lightweight demo for finding teammates and building reputation across teams and contests.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary" href="{{ url_for('lobbies_page') }}">Browse lobbies</a>
+                <a class="btn btn-outline-secondary" href="{{ url_for('users_page') }}">View users</a>
+            </div>
+        </div>
+    </div>
 
-</div>
-
-</body>
-</html>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Users</h5>
+                    <p class="card-text text-muted">See seeded users and their basic info.</p>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('users_page') }}">Go to users</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Lobbies</h5>
+                    <p class="card-text text-muted">Discover teams recruiting for contests and projects.</p>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('lobbies_page') }}">Go to lobbies</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

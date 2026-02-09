@@ -1,3 +1,22 @@
 body {
     font-family: 'Helvetica Neue', 'Helvetica', 'Arial', system-ui;
 }
+
+.editable-field {
+    position: relative;
+}
+
+.editable-field .edit-btn {
+    visibility: hidden;
+}
+
+.editable-field:hover .edit-btn {
+    visibility: visible;
+}
+
+.icon-btn {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    line-height: 1;
+}

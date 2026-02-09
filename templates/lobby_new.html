@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}TRS · Create Lobby{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-md-9 col-lg-7">
+      <div class="d-flex align-items-end justify-content-between mb-3">
+        <div>
+          <h1 class="h3 mb-1">Create a lobby</h1>
+          <div class="text-muted">Start recruiting for a contest or project.</div>
+        </div>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('lobbies_page') }}">Back</a>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <form method="post" action="{{ url_for('create_lobby_page') }}">
+            <div class="mb-3">
+              <label class="form-label" for="title">Title</label>
+              <input class="form-control" id="title" name="title" required placeholder="e.g., ICPC Regional 2026 Team">
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="contest_link">Contest link (optional)</label>
+              <input class="form-control" id="contest_link" name="contest_link" placeholder="https://...">
+            </div>
+            <div class="d-grid">
+              <button class="btn btn-primary" type="submit">Create lobby</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

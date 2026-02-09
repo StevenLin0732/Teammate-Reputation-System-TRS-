@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block title %}TRS · Profile{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+    <div class="w-100">
+      <div class="d-flex align-items-start justify-content-between gap-2">
+        <div class="editable-field">
+          <h1 class="h3 mb-1">
+            {{ user.name }}
+            {% if can_edit %}
+              <button class="icon-btn edit-btn text-muted ms-1" type="button" data-bs-toggle="modal" data-bs-target="#editFieldModal" data-field="name" data-label="Name" data-type="text" data-value="{{ user.name|e }}" aria-label="Edit name">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168z"/><path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/></svg>
+              </button>
+            {% endif %}
+          </h1>
+          <div class="text-muted">
+            <span class="editable-field">
+              {{ user.major or 'Undeclared' }}
+              {% if can_edit %}
+                <button class="icon-btn edit-btn text-muted ms-1" type="button" data-bs-toggle="modal" data-bs-target="#editFieldModal" data-field="major" data-label="Major" data-type="text" data-value="{{ (user.major or '')|e }}" aria-label="Edit major">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168z"/><path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/></svg>
+                </button>
+              {% endif %}
+            </span>
+            {% if user.year %}
+              ·
+            {% endif %}
+            <span class="editable-field">
+              {{ user.year or '—' }}
+              {% if can_edit %}
+                <button class="icon-btn edit-btn text-muted ms-1" type="button" data-bs-toggle="modal" data-bs-target="#editFieldModal" data-field="year" data-label="Year" data-type="text" data-value="{{ (user.year or '')|e }}" aria-label="Edit year">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168z"/><path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/></svg>
+                </button>
+              {% endif %}
+            </span>
+          </div>
+        </div>
+        {% if can_edit %}
+          <span class="badge text-bg-success">You</span>
+        {% endif %}
+      </div>
+
+      <div class="mt-3">
+        <span class="badge text-bg-secondary">Overall</span>
+        <span class="ms-2 small">
+          <span class="text-muted">Contrib</span> <span class="fw-semibold">{{ overall_rep.contribution_avg }}</span>
+          · <span class="text-muted">Comm</span> <span class="fw-semibold">{{ overall_rep.communication_avg }}</span>
+          · <span class="text-muted">WWA</span>
+          <span class="fw-semibold">{% if overall_rep.would_work_again_ratio is none %}—{% else %}{{ (overall_rep.would_work_again_ratio * 100) | round(0) }}%{% endif %}</span>
+          <span class="text-muted">(n={{ overall_rep.rating_count }})</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-body editable-field">
+          <div class="d-flex align-items-center justify-content-between">
+            <h2 class="h6 text-uppercase text-muted mb-0">About</h2>
+            {% if can_edit %}
+              <button class="icon-btn edit-btn text-muted" type="button" data-bs-toggle="modal" data-bs-target="#editFieldModal" data-field="bio" data-label="Bio" data-type="textarea" data-value="{{ (user.bio or '')|e }}" aria-label="Edit bio">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168z"/><path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/></svg>
+              </button>
+            {% endif %}
+          </div>
+          <p class="mb-0 mt-2">{{ user.bio or 'No bio yet.' }}</p>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-3">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Contact</h2>
+
+          <div class="editable-field d-flex align-items-start justify-content-between gap-2">
+            <div>
+              <div class="small text-muted">Email</div>
+              <div class="mb-2">{{ user.email or '—' }}</div>
+            </div>
+            {% if can_edit %}
+              <button class="icon-btn edit-btn text-muted" type="button" data-bs-toggle="modal" data-bs-target="#editFieldModal" data-field="email" data-label="Email" data-type="email" data-value="{{ (user.email or '')|e }}" aria-label="Edit email">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168z"/><path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/></svg>
+              </button>
+            {% endif %}
+          </div>
+
+          <div class="editable-field d-flex align-items-start justify-content-between gap-2">
+            <div>
+              <div class="small text-muted">Phone</div>
+              <div class="mb-2">{{ user.phone or '—' }}</div>
+            </div>
+            {% if can_edit %}
+              <button class="icon-btn edit-btn text-muted" type="button" data-bs-toggle="modal" data-bs-target="#editFieldModal" data-field="phone" data-label="Phone" data-type="text" data-value="{{ (user.phone or '')|e }}" aria-label="Edit phone">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168z"/><path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/></svg>
+              </button>
+            {% endif %}
+          </div>
+
+          <div class="editable-field d-flex align-items-start justify-content-between gap-2">
+            <div>
+              <div class="small text-muted">Link</div>
+              {% if user.contact %}
+                <div><a href="{{ user.contact }}" target="_blank" rel="noopener noreferrer">{{ user.contact }}</a></div>
+              {% else %}
+                <div>—</div>
+              {% endif %}
+            </div>
+            {% if can_edit %}
+              <button class="icon-btn edit-btn text-muted" type="button" data-bs-toggle="modal" data-bs-target="#editFieldModal" data-field="contact" data-label="Contact link" data-type="text" data-value="{{ (user.contact or '')|e }}" aria-label="Edit contact link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168z"/><path d="M11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207z"/></svg>
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <h2 class="h5 mb-0">Contest history</h2>
+            <span class="text-muted small">Finished contests</span>
+          </div>
+          <hr>
+
+          {% if history and history|length %}
+            <div class="list-group list-group-flush">
+              {% for item in history %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold">
+                        <a href="{{ url_for('lobby_detail', lobby_id=item.lobby.id) }}">{{ item.lobby.title }}</a>
+                      </div>
+                      <div class="text-muted small">Lobby ID: {{ item.lobby.id }}</div>
+                    </div>
+                    <span class="badge text-bg-dark">Finished</span>
+                  </div>
+
+                  <div class="mt-2 small">
+                    <span class="text-muted">Ratings received:</span>
+                    <span class="fw-semibold">{{ item.rating_count }}</span>
+                    · <span class="text-muted">Contribution avg:</span> <span class="fw-semibold">{{ item.contribution_avg }}</span>
+                    · <span class="text-muted">Communication avg:</span> <span class="fw-semibold">{{ item.communication_avg }}</span>
+                    · <span class="text-muted">Would-work-again:</span>
+                    <span class="fw-semibold">
+                      {% if item.would_work_again_ratio is none %}—{% else %}{{ (item.would_work_again_ratio * 100) | round(0) }}%{% endif %}
+                    </span>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">No finished contests yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if can_edit %}
+    <div class="modal fade" id="editFieldModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form method="post" action="{{ url_for('user_profile', user_id=user.id) }}">
+            <div class="modal-header">
+              <h5 class="modal-title" id="editFieldModalLabel">Edit</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" name="field" id="edit-field">
+              <div class="mb-3">
+                <label class="form-label" id="edit-label" for="edit-value">Value</label>
+                <input class="form-control" id="edit-value" name="value" type="text">
+                <textarea class="form-control d-none" id="edit-textarea" name="value" rows="5" disabled></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const editModal = document.getElementById('editFieldModal');
+      editModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const field = button.getAttribute('data-field');
+        const label = button.getAttribute('data-label') || 'Value';
+        const type = button.getAttribute('data-type') || 'text';
+        const value = button.getAttribute('data-value') || '';
+
+        document.getElementById('editFieldModalLabel').textContent = 'Edit ' + label;
+        document.getElementById('edit-field').value = field;
+        document.getElementById('edit-label').textContent = label;
+
+        const input = document.getElementById('edit-value');
+        const textarea = document.getElementById('edit-textarea');
+
+        if (type === 'textarea') {
+          input.classList.add('d-none');
+          input.disabled = true;
+          textarea.classList.remove('d-none');
+          textarea.disabled = false;
+          textarea.value = value;
+        } else {
+          textarea.classList.add('d-none');
+          textarea.disabled = true;
+          input.classList.remove('d-none');
+          input.disabled = false;
+          input.type = type;
+          input.value = value;
+        }
+      });
+    </script>
+  {% endif %}
+{% endblock %}
