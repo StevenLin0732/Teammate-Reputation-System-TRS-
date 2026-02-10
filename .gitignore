@@ -1,4 +1,14 @@
  .venv/
 *.db
 .idea/
-__pycache__/
+*__pycache__/
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*/out/
