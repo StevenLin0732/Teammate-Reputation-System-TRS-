@@ -56,25 +56,44 @@
 		\text{Duke Summer Research}\\
 		\text{Feeling:}\\
 		\text{Nervous \& excited}\\[0.25em]
-		\includegraphics[width=1\textwidth]{4}
+		%\includegraphics[width=1\textwidth]{4}
 
 		\column{.25\textwidth}
 		\textbf{Hongtian Lin}\\
 
 		\column{.25\textwidth}
 		\textbf{Yuxiang Lin}\\
-
-
+		\text{Fav code editor:}\\
+		\text{GitHub Issues}
+		\includegraphics[width=1\textwidth]{./images/yl_issues.png}
 	\end{columns}
 \end{frame}
 
-
 \begin{frame}{Backend}
 	\begin{itemize}
-		\item Lorem ipsum dolor sit amet, consectetur adipiscing elit
+		\item \textbf{Framework:} Flask (Python) with server-side rendered pages (Jinja2 templates)
+		\item \textbf{Data layer:} Flask-SQLAlchemy (SQLAlchemy ORM)
+		\item \textbf{Database:} SQLite (local file DB, e.g., \texttt{teamrank.db})
+		\item \textbf{Models / tables:} User, Lobby, Team, TeamMember, Submission, Rating
+		\item \textbf{How data access works:} Python objects \textrightarrow{} ORM queries \textrightarrow{} generated SQL
+		\item \textbf{Notes:} simple schema evolution for SQLite (no full migration tool yet)
 	\end{itemize}
+
+	\vfill
+	\begin{center}
+		\includegraphics[width=0.22\textwidth]{./images/flask_logo.png}
+		\hspace{0.04\textwidth}
+		\includegraphics[width=0.22\textwidth]{./images/sqlite_logo.png}
+		\hspace{0.04\textwidth}
+		\includegraphics[width=0.22\textwidth]{./images/sqlalchemy_logo.png}
+	\end{center}
 \end{frame}
 
+\begin{frame}{Database Schema (ER Diagram)}
+	\begin{center}
+		\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{./images/db_schema.png}
+	\end{center}
+\end{frame}
 
 \begin{frame}[fragile]{Database Seeding }
 	\begin{columns}[T,onlytextwidth]
@@ -96,16 +115,71 @@
 		
 		\column{0.45\textwidth}
 		\centering
-		\includegraphics[width=\linewidth]{1}\vspace{0.4em}
+		%\includegraphics[width=\linewidth]{1}\vspace{0.4em}
 		
-		\includegraphics[width=\linewidth]{2}
+		%\includegraphics[width=\linewidth]{2}
+	\end{columns}
+\end{frame}
+
+\section{Demonstration}
+
+\section{AI Statement}
+
+\section{Quiz}
+
+\section{Template examples}
+
+\begin{frame}{Bullet Points}
+	\begin{itemize}
+		\item Lorem ipsum dolor sit amet, consectetur adipiscing elit
+		\item Aliquam blandit faucibus nisi, sit amet dapibus enim tempus eu
+		\item Nulla commodo, erat quis gravida posuere, elit lacus lobortis est, quis porttitor odio mauris at libero
+		\item Nam cursus est eget velit posuere pellentesque
+		\item Vestibulum faucibus velit a augue condimentum quis convallis nulla gravida
+	\end{itemize}
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}{Blocks of Highlighted Text}
+	In this slide, some important text will be \alert{highlighted} because it's important. Please, don't abuse it.
+
+	\begin{block}{Block}
+		Sample text
+	\end{block}
+
+	\begin{alertblock}{Alertblock}
+		Sample text in red box
+	\end{alertblock}
+
+	\begin{examples}
+		Sample text in green box. The title of the block is ``Examples".
+	\end{examples}
+\end{frame}
+
+%------------------------------------------------
+
+\begin{frame}{Multiple Columns}
+	\begin{columns}[c] % The "c" option specifies centered vertical alignment while the "t" option is used for top vertical alignment
+
+		\column{.45\textwidth} % Left column and width
+		\textbf{Heading}
+		\begin{enumerate}
+			\item Statement
+			\item Explanation
+			\item Example
+		\end{enumerate}
+
+		\column{.45\textwidth} % Right column and width
+		Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer lectus nisl, ultricies in feugiat rutrum, porttitor sit amet augue. Aliquam ut tortor mauris. Sed volutpat ante purus, quis accumsan dolor.
+
 	\end{columns}
 \end{frame}
 
 \section{Demonstration}
 \begin{frame}{Demonstration}
 	\centering
-	\includegraphics[width=0.95\textwidth]{3}
+	%\includegraphics[width=0.95\textwidth]{3}
 	
 	\vspace{0.4em}
 	{\large Demo of the full workflow}
