@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-
 from app import app
 from extensions import db
 from models import User, Lobby, Team, Submission, Rating
@@ -13,112 +12,220 @@ def reset_db():
 def seed_users():
     users = [
         User(
-            name="Alice Chen",
+            name="Alice Zhang",
             major="CS",
             year="2027",
-            bio="Backend-focused. Flask/FastAPI, SQLAlchemy, REST APIs. Strong at debugging and writing clean interfaces. Interested in hackathons and systems.",
-            contact="GitHub: alicechen | LinkedIn: alice-chen | WeChat: alice_chen27",
-            phone="+1-202-555-0101",
-            email="alice.chen@example.com",
+            bio="Backend-focused. Flask + SQLAlchemy + SQLite. Strong with API design and data modeling.",
+            contact="GitHub: github.com/alicezhang | Discord: alice#1024 | LinkedIn: linkedin.com/in/alicezhang",
+            phone="919-555-0101",
+            email="alice.zhang@example.com",
         ),
         User(
-            name="Bob Zhang",
+            name="Bob Lin",
             major="Math",
             year="2026",
-            bio="Algorithms + competitive programming. Comfortable with C++/Python, graph algorithms, DP, and complexity analysis. Reliable under deadlines.",
-            contact="GitHub: bobzhang | WeChat: bob_algo",
-            phone="+1-202-555-0102",
-            email="bob.zhang@example.com",
+            bio="Algorithms & systems. Strong in C++/Python, optimization, and debugging edge cases.",
+            contact="GitHub: github.com/boblin | Discord: bob#2048 | WeChat: boblin_math",
+            phone="919-555-0102",
+            email="bob.lin@example.com",
         ),
         User(
-            name="Cathy Liu",
+            name="Cathy Wu",
             major="Data Science",
             year="2027",
-            bio="Data/ML. Pandas, scikit-learn basics, evaluation metrics. Can build quick dashboards and data pipelines. Good communicator.",
-            contact="GitHub: cathyliu | LinkedIn: cathy-liu-ds",
-            phone="+1-202-555-0103",
-            email="cathy.liu@example.com",
+            bio="ML & data. Pandas/Numpy, evaluation metrics, feature engineering, baseline modeling.",
+            contact="GitHub: github.com/cathywu | LinkedIn: linkedin.com/in/cathywu | Discord: cathy#7788",
+            phone="919-555-0103",
+            email="cathy.wu@example.com",
         ),
         User(
-            name="David Wang",
+            name="David Chen",
             major="ECE",
             year="2026",
-            bio="Frontend + UI. JavaScript, Bootstrap, basic React. Can translate requirements into simple, usable pages quickly. Enjoys rapid prototyping.",
-            contact="GitHub: davidwang | Portfolio: davidwang.dev",
-            phone="+1-202-555-0104",
-            email="david.wang@example.com",
+            bio="Frontend + integration. JavaScript/HTML/CSS, Bootstrap, and wiring UI to REST APIs.",
+            contact="GitHub: github.com/davidchen | Discord: david#3344 | Portfolio: davidchen.dev",
+            phone="919-555-0104",
+            email="david.chen@example.com",
         ),
         User(
-            name="Evan Zhou",
+            name="Evan Li",
             major="Business",
             year="2028",
-            bio="PM/operations. Clear planning, task breakdown, presentations, and pitch decks. Can help with product narrative and user research.",
-            contact="LinkedIn: evan-zhou | WeChat: evan_pm",
-            phone="+1-202-555-0105",
-            email="evan.zhou@example.com",
+            bio="Product & pitching. Milestones, demos, writing clear requirements, and presenting.",
+            contact="LinkedIn: linkedin.com/in/evanli | Discord: evan#5566 | Email preferred",
+            phone="919-555-0105",
+            email="evan.li@example.com",
         ),
         User(
-            name="Fiona Xu",
+            name="Fiona Wang",
             major="CS",
             year="2028",
-            bio="UI/UX + frontend. Bootstrap layouts, forms, validation. Can make pages look consistent and demo-ready. Interested in human-centered design.",
-            contact="GitHub: fionaxu | LinkedIn: fiona-xu",
-            phone="+1-202-555-0106",
-            email="fiona.xu@example.com",
+            bio="UI/UX. Bootstrap layouts, usability-focused flows, quick iteration with clean styling.",
+            contact="GitHub: github.com/fionawang | Behance: behance.net/fionawang | Discord: fiona#1212",
+            phone="919-555-0106",
+            email="fiona.wang@example.com",
         ),
         User(
-            name="Grace Sun",
+            name="Grace Zhao",
             major="Statistics",
             year="2027",
-            bio="Evaluation + metrics. Survey design, simple experiments, A/B testing intuition. Can help define reputation scoring and fairness checks.",
-            contact="LinkedIn: grace-sun-stats | WeChat: grace_stats",
-            phone="+1-202-555-0107",
-            email="grace.sun@example.com",
+            bio="Experimentation & analytics. A/B tests, scoring robustness, and communicating results.",
+            contact="LinkedIn: linkedin.com/in/gracezhao | Discord: grace#9090 | WeChat: grace_stats",
+            phone="919-555-0107",
+            email="grace.zhao@example.com",
         ),
         User(
-            name="Henry Lin",
+            name="Henry Sun",
             major="Physics",
             year="2026",
-            bio="Systems-minded. Strong debugging, performance thinking, and careful testing. Can implement robust scripts and check edge cases.",
-            contact="GitHub: henrylin | WeChat: henry_sys",
-            phone="+1-202-555-0108",
-            email="henry.lin@example.com",
+            bio="Systems + performance. Profiling, reliability, and making code stable under constraints.",
+            contact="GitHub: github.com/henrysun | Discord: henry#7878 | Email preferred",
+            phone="919-555-0108",
+            email="henry.sun@example.com",
         ),
         User(
-            name="Iris Gao",
+            name="Ivy Gao",
             major="CS",
             year="2027",
-            bio="Full-stack learner. Flask, SQLite, APIs, and simple frontend. Good at connecting pieces and delivering working features.",
-            contact="GitHub: irisgao | LinkedIn: iris-gao",
-            phone="+1-202-555-0109",
-            email="iris.gao@example.com",
+            bio="Backend engineer. CRUD APIs, schema design, and clean service boundaries.",
+            contact="GitHub: github.com/ivygao | Discord: ivy#2323 | LinkedIn: linkedin.com/in/ivygao",
+            phone="919-555-0109",
+            email="ivy.gao@example.com",
         ),
         User(
-            name="Jason He",
-            major="Data Science",
-            year="2026",
-            bio="Data engineering basics. ETL, JSON, schema design, and validation. Can help keep database consistent and write small admin tools.",
-            contact="GitHub: jasonhe | WeChat: jason_data",
-            phone="+1-202-555-0110",
-            email="jason.he@example.com",
+            name="Jack He",
+            major="Math",
+            year="2027",
+            bio="Logic + algorithms. Correctness, tests, and writing clean maintainable code.",
+            contact="GitHub: github.com/jackhe | Discord: jack#1717 | WeChat: jack_logic",
+            phone="919-555-0110",
+            email="jack.he@example.com",
         ),
         User(
-            name="Kelly Tang",
-            major="Media Arts",
+            name="Kelly Huang",
+            major="Economics",
             year="2028",
-            bio="Design + storytelling. Can polish UI content, write onboarding copy, and improve demo flow. Strong collaboration and presentation skills.",
-            contact="Portfolio: kellytang.design | WeChat: kelly_design",
-            phone="+1-202-555-0111",
-            email="kelly.tang@example.com",
+            bio="Research & narrative. Surveys, validating assumptions, and polishing documentation.",
+            contact="LinkedIn: linkedin.com/in/kellyhuang | Discord: kelly#4848 | Email preferred",
+            phone="919-555-0111",
+            email="kelly.huang@example.com",
         ),
         User(
-            name="Leo Huang",
+            name="Leo Xu",
             major="CS",
             year="2026",
-            bio="Backend + databases. SQL, schema modeling, and server logic. Comfortable with Flask, ORMs, and building small APIs for demos.",
-            contact="GitHub: leohuang | LinkedIn: leo-huang",
-            phone="+1-202-555-0112",
-            email="leo.huang@example.com",
+            bio="DevOps mindset. Git workflows, CI basics, and keeping repos organized for teamwork.",
+            contact="GitHub: github.com/leoxu | Discord: leo#6060 | Email preferred",
+            phone="919-555-0112",
+            email="leo.xu@example.com",
+        ),
+        User(
+            name="Mia Yang",
+            major="Data Science",
+            year="2026",
+            bio="Visualization & dashboards. Clear charts, summary pages, and interpreting patterns.",
+            contact="GitHub: github.com/miayang | Discord: mia#3131 | Portfolio: miayang.dev",
+            phone="919-555-0113",
+            email="mia.yang@example.com",
+        ),
+        User(
+            name="Noah Liu",
+            major="ECE",
+            year="2028",
+            bio="Hardware-software bridge. Careful debugging and reliable implementation habits.",
+            contact="GitHub: github.com/noahliu | Discord: noah#1414 | WeChat: noah_ece",
+            phone="919-555-0114",
+            email="noah.liu@example.com",
+        ),
+        User(
+            name="Olivia Qian",
+            major="CS",
+            year="2027",
+            bio="Frontend specialist. Strong HTML/CSS, solid UX intuition, quick UI iteration.",
+            contact="GitHub: github.com/oliviaqian | Discord: olivia#8888 | Portfolio: oliviaqian.dev",
+            phone="919-555-0115",
+            email="olivia.qian@example.com",
+        ),
+        User(
+            name="Peter Ren",
+            major="Statistics",
+            year="2026",
+            bio="Metrics & evaluation. Reputation aggregation, robustness, and reducing noisy ratings.",
+            contact="LinkedIn: linkedin.com/in/peterren | Discord: peter#2525 | WeChat: peter_stats",
+            phone="919-555-0116",
+            email="peter.ren@example.com",
+        ),
+        User(
+            name="Quinn Zhou",
+            major="Business",
+            year="2027",
+            bio="Operations. Standups, task tracking, and keeping teams on schedule.",
+            contact="LinkedIn: linkedin.com/in/quinnzhou | Discord: quinn#3636 | Email preferred",
+            phone="919-555-0117",
+            email="quinn.zhou@example.com",
+        ),
+        User(
+            name="Ruby Tang",
+            major="Physics",
+            year="2028",
+            bio="Simulation & problem solving. Turns vague specs into testable steps and clean logic.",
+            contact="GitHub: github.com/rubytang | Discord: ruby#4545 | Email preferred",
+            phone="919-555-0118",
+            email="ruby.tang@example.com",
+        ),
+        User(
+            name="Sam Gu",
+            major="CS",
+            year="2026",
+            bio="Full-stack generalist. Flask + templates, basic JS, and connecting forms to routes.",
+            contact="GitHub: github.com/samgu | Discord: sam#5656 | LinkedIn: linkedin.com/in/samgu",
+            phone="919-555-0119",
+            email="sam.gu@example.com",
+        ),
+        User(
+            name="Tina Fan",
+            major="Data Science",
+            year="2028",
+            bio="Data cleaning & ML basics. Prepares datasets, runs baselines, writes experiment notes.",
+            contact="GitHub: github.com/tinafan | Discord: tina#6767 | Email preferred",
+            phone="919-555-0120",
+            email="tina.fan@example.com",
+        ),
+        User(
+            name="Uma Shen",
+            major="Economics",
+            year="2027",
+            bio="Research & writing. Strong documentation, proposals, and summarizing decisions.",
+            contact="LinkedIn: linkedin.com/in/umashen | Discord: uma#7870 | Email preferred",
+            phone="919-555-0121",
+            email="uma.shen@example.com",
+        ),
+        User(
+            name="Victor Ma",
+            major="CS",
+            year="2028",
+            bio="Competitive programming. Fast implementation, strong debugging, and constraints handling.",
+            contact="GitHub: github.com/victorma | Discord: victor#8989 | WeChat: victor_cp",
+            phone="919-555-0122",
+            email="victor.ma@example.com",
+        ),
+        User(
+            name="Wendy Luo",
+            major="ECE",
+            year="2027",
+            bio="UI + integration. Polishing flows, form validation, and improving user experience.",
+            contact="GitHub: github.com/wendyluo | Discord: wendy#9091 | Portfolio: wendyluo.dev",
+            phone="919-555-0123",
+            email="wendy.luo@example.com",
+        ),
+        User(
+            name="Xavier Deng",
+            major="Statistics",
+            year="2028",
+            bio="Scoring systems. Interested in robust aggregation and reducing gaming of ratings.",
+            contact="LinkedIn: linkedin.com/in/xavierdeng | Discord: xavier#1010 | Email preferred",
+            phone="919-555-0124",
+            email="xavier.deng@example.com",
         ),
     ]
     db.session.add_all(users)
@@ -126,10 +233,7 @@ def seed_users():
     return users
 
 
-def make_lobby(title, link, leader_id, finished=False, finished_days_ago=None):
-    finished_at = None
-    if finished and finished_days_ago is not None:
-        finished_at = datetime.utcnow() - timedelta(days=finished_days_ago)
+def create_lobby(title, link, leader_id, finished=False, finished_at=None):
     lobby = Lobby(
         title=title,
         contest_link=link,
@@ -142,142 +246,117 @@ def make_lobby(title, link, leader_id, finished=False, finished_days_ago=None):
     return lobby
 
 
-def make_team(lobby_id, locked=False, member_ids=None):
+def create_team(lobby_id, locked=False):
     team = Team(lobby_id=lobby_id, locked=locked)
     db.session.add(team)
-    db.session.commit()
-    for uid in (member_ids or []):
-        team.add_member(uid)
     db.session.commit()
     return team
 
 
-def add_submission(team_id, submitter_id, link):
-    s = Submission(team_id=team_id, submitter_id=submitter_id, proof_link=link)
+def add_members(team, user_ids):
+    for uid in user_ids:
+        team.add_member(uid)
+    db.session.commit()
+
+
+def seed_submission(team_id, submitter_id, proof_link):
+    s = Submission(team_id=team_id, submitter_id=submitter_id, proof_link=proof_link)
     db.session.add(s)
     db.session.commit()
     return s
 
 
-def add_rating(team_id, rater_id, target_id, contrib, comm, wwa, comment):
-    r = Rating(
-        team_id=team_id,
-        rater_id=rater_id,
-        target_user_id=target_id,
-        contribution=contrib,
-        communication=comm,
-        would_work_again=wwa,
-        comment=comment,
-    )
-    db.session.add(r)
-
-
-def pairwise_ratings(team_id, user_ids, base_contrib, base_comm, bias=None, tag=""):
-    bias = bias or {}
-    for rater in user_ids:
-        for target in user_ids:
+def seed_ratings_full_matrix(team_id, member_ids, salt=0):
+    ratings = []
+    for i, rater in enumerate(member_ids):
+        for j, target in enumerate(member_ids):
             if rater == target:
                 continue
-            bc = base_contrib + bias.get((rater, target), 0)
-            bm = base_comm + bias.get((target, rater), 0)
-            bc = max(1, min(10, int(bc)))
-            bm = max(1, min(10, int(bm)))
-            wwa = (bc + bm) >= 15
-            comment = f"{tag} contrib={bc}, comm={bm}"
-            add_rating(team_id, rater, target, bc, bm, wwa, comment)
+            contribution = 6 + ((i + 2 * j + salt) % 5)
+            communication = 6 + ((2 * i + j + salt) % 5)
+            would_work_again = ((i + j + salt) % 2 == 0)
+            ratings.append(
+                Rating(
+                    team_id=team_id,
+                    rater_id=rater,
+                    target_user_id=target,
+                    contribution=contribution,
+                    communication=communication,
+                    would_work_again=would_work_again,
+                    comment=f"demo rating {rater}->{target}",
+                )
+            )
+    db.session.add_all(ratings)
     db.session.commit()
 
 
-def seed_finished_lobby_a(users):
-    u = {x.name: x for x in users}
-    leader = u["Alice Chen"]
-    m1 = u["Bob Zhang"]
-    m2 = u["Cathy Liu"]
-    m3 = u["David Wang"]
+def group_for_lobby(user_ids, lobby_index, group_size=4):
+    n = len(user_ids)
+    start = (lobby_index * group_size) % n
+    group = []
+    for k in range(group_size):
+        group.append(user_ids[(start + k) % n])
+    if len(set(group)) < 2:
+        group = [user_ids[start], user_ids[(start + 1) % n]]
+    return group
 
-    lobby = make_lobby(
-        "Hackathon A (Finished + Rated)",
-        "https://example.com/hackathon-a",
-        leader.id,
+
+def seed_finished_lobby(users, lobby_index, title, link, days_ago):
+    user_ids = [u.id for u in users]
+    members = group_for_lobby(user_ids, lobby_index, group_size=4)
+    leader_id = members[0]
+
+    lobby = create_lobby(
+        title=title,
+        link=link,
+        leader_id=leader_id,
         finished=True,
-        finished_days_ago=2,
+        finished_at=datetime.utcnow() - timedelta(days=days_ago),
     )
-    team = make_team(lobby.id, locked=True, member_ids=[leader.id, m1.id, m2.id, m3.id])
 
-    add_submission(team.id, leader.id, "https://devpost.com/software/teamrank-a")
-    add_submission(team.id, m2.id, "https://github.com/demo/teamrank-a-proof")
+    team = create_team(lobby.id, locked=True)
+    add_members(team, members)
 
-    bias = {
-        (m1.id, leader.id): 1,
-        (m2.id, leader.id): 1,
-        (m3.id, leader.id): 0,
-        (leader.id, m1.id): 0,
-        (leader.id, m2.id): 1,
-        (leader.id, m3.id): -1,
-    }
-    pairwise_ratings(team.id, [leader.id, m1.id, m2.id, m3.id], base_contrib=8, base_comm=8, bias=bias, tag="HackathonA")
+    seed_submission(team.id, submitter_id=leader_id, proof_link=f"https://devpost.com/software/{lobby.id}-{team.id}")
+    seed_ratings_full_matrix(team.id, members, salt=(lobby.id + lobby_index))
+    return lobby
 
 
-def seed_finished_lobby_d(users):
-    leader = users[11]
-    m1 = users[6]
-    m2 = users[7]
+def seed_open_lobby(users, lobby_index, title, link, locked=False):
+    user_ids = [u.id for u in users]
+    members = group_for_lobby(user_ids, lobby_index, group_size=4)
+    leader_id = members[0]
 
-    lobby = make_lobby(
-        "Datathon D (Finished + Rated)",
-        "https://example.com/datathon-d",
-        leader.id,
-        finished=True,
-        finished_days_ago=1,
-    )
-    team = make_team(lobby.id, locked=True, member_ids=[leader.id, m1.id, m2.id])
-
-    add_submission(team.id, leader.id, "https://devpost.com/software/teamrank-d")
-    bias = {
-        (m1.id, leader.id): 0,
-        (m2.id, leader.id): 1,
-        (leader.id, m1.id): 1,
-        (leader.id, m2.id): 0,
-    }
-    pairwise_ratings(team.id, [leader.id, m1.id, m2.id], base_contrib=7, base_comm=7, bias=bias, tag="DatathonD")
-
-
-def seed_open_lobbies(users):
-    leader_b = users[3]
-    lobby_b = make_lobby(
-        "Hackathon B (Open Lobby)",
-        "https://example.com/hackathon-b",
-        leader_b.id,
+    lobby = create_lobby(
+        title=title,
+        link=link,
+        leader_id=leader_id,
         finished=False,
+        finished_at=None,
     )
-    make_team(lobby_b.id, locked=False, member_ids=[leader_b.id, users[4].id, users[10].id])
 
-    leader_c = users[5]
-    lobby_c = make_lobby(
-        "Contest C (Team Locked)",
-        "https://example.com/contest-c",
-        leader_c.id,
-        finished=False,
-    )
-    make_team(lobby_c.id, locked=True, member_ids=[leader_c.id, users[8].id])
-
-    leader_e = users[9]
-    lobby_e = make_lobby(
-        "MiniJam E (Open Lobby)",
-        "https://example.com/minijam-e",
-        leader_e.id,
-        finished=False,
-    )
-    make_team(lobby_e.id, locked=False, member_ids=[leader_e.id])
+    team = create_team(lobby.id, locked=locked)
+    add_members(team, members)
+    return lobby
 
 
 def main():
     with app.app_context():
         reset_db()
         users = seed_users()
-        seed_finished_lobby_a(users)
-        seed_finished_lobby_d(users)
-        seed_open_lobbies(users)
+
+        seed_finished_lobby(users, 0, "Hackathon A", "https://example.com/hackathon-a", 1)
+        seed_finished_lobby(users, 1, "Hackathon B", "https://example.com/hackathon-b", 3)
+        seed_finished_lobby(users, 2, "Hackathon C", "https://example.com/hackathon-c", 7)
+        seed_finished_lobby(users, 3, "Hackathon D", "https://example.com/hackathon-d", 10)
+
+        seed_open_lobby(users, 4, "Contest E", "https://example.com/contest-e", locked=False)
+        seed_open_lobby(users, 5, "Contest F", "https://example.com/contest-f", locked=False)
+        seed_open_lobby(users, 6, "Contest G", "https://example.com/contest-g", locked=True)
+        seed_open_lobby(users, 7, "Contest H", "https://example.com/contest-h", locked=False)
+        seed_open_lobby(users, 8, "Contest I", "https://example.com/contest-i", locked=True)
+        seed_open_lobby(users, 9, "Contest J", "https://example.com/contest-j", locked=False)
+
         print("Seed complete.")
 
 
