@@ -13,3 +13,5 @@
 *.synctex.gz
 */out/
 *.vrb
+*.bbl
+*.blg
