@@ -63,7 +63,7 @@ class Lobby(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     contest_link = db.Column(db.String(500))
-    leader_id = db.Column(db.Integer)
+    leader_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     finished = db.Column(db.Boolean, default=False)
     finished_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -109,13 +109,13 @@ class Team(db.Model):
 class TeamMember(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    user_id = db.Column(db.Integer)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
 
 class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    submitter_id = db.Column(db.Integer)
+    submitter_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     proof_link = db.Column(db.String(1000))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -132,8 +132,8 @@ class Submission(db.Model):
 class Rating(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    rater_id = db.Column(db.Integer)
-    target_user_id = db.Column(db.Integer)
+    rater_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    target_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     contribution = db.Column(db.Integer)
     communication = db.Column(db.Integer)
     would_work_again = db.Column(db.Boolean, default=False)
