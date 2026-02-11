@@ -126,9 +126,9 @@
         <div class="card shadow-sm mt-3">
           <div class="card-body">
             <h2 class="h5">Proof submissions</h2>
-            <p class="text-muted mb-3">Each team member can submit proof. You can delete your own proofs.</p>
 
             {% if current_user and is_member %}
+            <p class="text-muted mb-3">Verify your participation.</p>
               <form class="row g-2" method="post" action="{{ url_for('submit_proof_page', lobby_id=lobby.id) }}">
                 <div class="col-12">
                   <label class="form-label" for="proof">Proof link / notes</label>
@@ -139,6 +139,9 @@
                 </div>
               </form>
               <hr>
+              {% else %}
+              <p class="text-muted mb-3">Verify contest legitemacy.</p>
+
             {% endif %}
 
             {% if submissions|length %}

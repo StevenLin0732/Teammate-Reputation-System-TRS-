@@ -30,13 +30,18 @@
 \headcommand {\beamer@framepages {9}{9}}
 \headcommand {\beamer@sectionpages {9}{9}}
 \headcommand {\beamer@subsectionpages {9}{9}}
-\headcommand {\sectionentry {5}{Quiz}{10}{Quiz}{0}}
+\headcommand {\sectionentry {5}{Next steps}{10}{Next steps}{0}}
 \headcommand {\slideentry {5}{0}{1}{10/10}{}{0}}
 \headcommand {\beamer@framepages {10}{10}}
-\headcommand {\slideentry {5}{0}{2}{11/11}{}{0}}
+\headcommand {\beamer@sectionpages {10}{10}}
+\headcommand {\beamer@subsectionpages {10}{10}}
+\headcommand {\sectionentry {6}{Quiz}{11}{Quiz}{0}}
+\headcommand {\slideentry {6}{0}{1}{11/11}{}{0}}
 \headcommand {\beamer@framepages {11}{11}}
-\headcommand {\beamer@partpages {1}{11}}
-\headcommand {\beamer@subsectionpages {10}{11}}
-\headcommand {\beamer@sectionpages {10}{11}}
-\headcommand {\beamer@documentpages {11}}
-\headcommand {\gdef \inserttotalframenumber {11}}
+\headcommand {\slideentry {6}{0}{2}{12/12}{}{0}}
+\headcommand {\beamer@framepages {12}{12}}
+\headcommand {\beamer@partpages {1}{12}}
+\headcommand {\beamer@subsectionpages {11}{12}}
+\headcommand {\beamer@sectionpages {11}{12}}
+\headcommand {\beamer@documentpages {12}}
+\headcommand {\gdef \inserttotalframenumber {12}}
