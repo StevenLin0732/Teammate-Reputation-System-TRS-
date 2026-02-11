@@ -1,0 +1,24 @@
+\frametitle{Database Seeding }
+\begin{columns}[T,onlytextwidth]
+		\column{0.55\textwidth}
+		\begin{itemize}
+			\item \textbf{Goal:} generate stable demo data (no empty pages)
+			\item \textbf{Workflow:} reset tables \(\rightarrow\) insert records
+			\item \textbf{Seeded:} \texttt{User, Lobby, Team, TeamMember, Submission, Rating}
+			\item \textbf{Effect:} \texttt{/login} and \texttt{/lobbies} ready immediately
+		\end{itemize}
+		
+		\vspace{0.4em}
+		\begin{block}{Run}
+			\begin{verbatim}
+				python seed_db.py
+				python app.py
+			\end{verbatim}
+		\end{block}
+		
+		\column{0.45\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{./images/1.png}\vspace{0.4em}
+		
+		\includegraphics[width=\linewidth]{./images/2.png}
+	\end{columns}
