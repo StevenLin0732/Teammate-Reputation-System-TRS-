@@ -16,3 +16,5 @@
 *.bbl
 *.blg
 *.DS_Store
+*.main.synctex.gz
+*.log

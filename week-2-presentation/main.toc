@@ -1,4 +1,5 @@
 \beamer@sectionintoc {1}{Introduction}{3}{0}{1}
-\beamer@sectionintoc {2}{Demonstration}{7}{0}{2}
-\beamer@sectionintoc {3}{AI Statement}{8}{0}{3}
-\beamer@sectionintoc {4}{Quiz}{8}{0}{4}
+\beamer@sectionintoc {2}{Simple System Diagram}{7}{0}{2}
+\beamer@sectionintoc {3}{Demonstration}{8}{0}{3}
+\beamer@sectionintoc {4}{AI Statement}{9}{0}{4}
+\beamer@sectionintoc {5}{Quiz}{9}{0}{5}
