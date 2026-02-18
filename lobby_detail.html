@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+
+{% block title %}TRS · Lobby{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ lobby.title }}</h1>
+      <div class="text-muted">
+        Lobby ID: {{ lobby.id }}
+        {% if lobby.finished %}· <span class="badge text-bg-dark">Finished</span>{% endif %}
+        {% if team %}· Team {% if team.locked %}<span class="badge text-bg-warning">Locked</span>{% else %}<span class="badge text-bg-success">Open</span>{% endif %}{% endif %}
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('lobbies_page') }}">Back to lobbies</a>
+      {% if current_user and team and (not lobby.finished) and (not team.locked) and (not is_member) %}
+        <form method="post" action="{{ url_for('join_lobby_page', lobby_id=lobby.id) }}">
+          <button class="btn btn-sm btn-primary" type="submit">Join lobby</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Contest</h2>
+          {% if lobby.contest_link %}
+            <a href="{{ lobby.contest_link }}" target="_blank" rel="noopener noreferrer">{{ lobby.contest_link }}</a>
+          {% else %}
+            <div class="text-muted">No contest link provided.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-3">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Leader</h2>
+          {% if leader %}
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold">{{ leader.name }}</div>
+                <div class="text-muted small">User ID: {{ leader.id }}</div>
+              </div>
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('user_profile', user_id=leader.id) }}">View profile</a>
+            </div>
+          {% else %}
+            <div class="text-muted">No leader assigned.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-3">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Members</h2>
+          {% if members|length %}
+            <div class="list-group list-group-flush">
+              {% for m in members %}
+                <div class="list-group-item px-0 d-flex align-items-center justify-content-between gap-2">
+                  <div>
+                    <div class="fw-semibold">{{ m.name }}</div>
+                    <div class="text-muted small">{{ m.major or '—' }}{% if m.year %} · {{ m.year }}{% endif %}</div>
+                  </div>
+                  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('user_profile', user_id=m.id) }}">Profile</a>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">No members yet.</div>
+          {% endif %}
+
+          {% if current_user and team and (not team.locked) and (not lobby.finished) %}
+            <hr>
+            <form class="row g-2" method="post" action="{{ url_for('invite_to_lobby', lobby_id=lobby.id) }}">
+              <div class="col-8">
+                <input class="form-control form-control-sm" id="target_email" name="target_email" placeholder="Invite user by email (@duke.edu)" required>
+              </div>
+              <div class="col-4 d-flex">
+                <button class="btn btn-sm btn-outline-primary ms-auto" type="submit">Request teammate</button>
+              </div>
+            </form>
+
+            {% if invites and invites|length %}
+              <div class="mt-2 small text-muted">Pending invitations:</div>
+              <ul class="list-unstyled small">
+                {% for inv in invites %}
+                  <li>{{ inv.to_dict().applicant_id }} → {{ inv.to_dict().target_user_id }} · <span class="text-muted">{{ inv.status }}</span></li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <h2 class="h5 mb-0">Lobby details</h2>
+            {% if is_leader %}
+              <span class="badge text-bg-success">Leader</span>
+            {% endif %}
+          </div>
+
+          <hr>
+
+          <form method="post" action="{{ url_for('lobby_detail', lobby_id=lobby.id) }}">
+            <input type="hidden" name="action" value="save">
+            <fieldset {% if not is_leader %}disabled{% endif %}>
+              <div class="mb-3">
+                <label class="form-label" for="title">Title</label>
+                <input class="form-control" id="title" name="title" value="{{ lobby.title }}" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="contest_link">Contest link</label>
+                <input class="form-control" id="contest_link" name="contest_link" value="{{ lobby.contest_link or '' }}" placeholder="https://...">
+              </div>
+            </fieldset>
+
+            {% if is_leader %}
+              <div class="d-flex justify-content-end align-items-center flex-wrap gap-2">
+                <button class="btn btn-primary" type="submit">Save changes</button>
+              </div>
+            {% endif %}
+          </form>
+
+          {% if is_leader and team and (not team.locked) %}
+            <form class="mt-2" method="post" action="{{ url_for('lobby_detail', lobby_id=lobby.id) }}">
+              <input type="hidden" name="action" value="lock_team">
+              <button class="btn btn-outline-warning" type="submit">Lock team</button>
+            </form>
+          {% endif %}
+
+          {% if is_leader and (not lobby.finished) %}
+            <form class="mt-2" method="post" action="{{ url_for('lobby_detail', lobby_id=lobby.id) }}">
+              <input type="hidden" name="action" value="finish_contest">
+              <button class="btn btn-outline-dark" type="submit">Mark contest as finished</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if lobby.finished %}
+        <div class="card shadow-sm mt-3">
+          <div class="card-body">
+            <h2 class="h5">Proof submissions</h2>
+
+            {% if current_user and is_member %}
+            <p class="text-muted mb-3">Verify your participation.</p>
+              <form class="row g-2" method="post" action="{{ url_for('submit_proof_page', lobby_id=lobby.id) }}">
+                <div class="col-12">
+                  <label class="form-label" for="proof">Proof link / notes</label>
+                  <input class="form-control" id="proof" name="proof" placeholder="https://... or a short description" required>
+                </div>
+                <div class="col-12 d-flex justify-content-end">
+                  <button class="btn btn-primary" type="submit">Submit proof</button>
+                </div>
+              </form>
+              <hr>
+              {% else %}
+              <p class="text-muted mb-3">Verify contest legitemacy.</p>
+
+            {% endif %}
+
+            {% if submissions|length %}
+              <div class="list-group list-group-flush">
+                {% for item in submissions %}
+                  <div class="list-group-item px-0">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                      <div>
+                        <div class="fw-semibold">
+                          {% if item.submitter %}{{ item.submitter.name }}{% else %}Unknown submitter{% endif %}
+                        </div>
+                        <div class="text-muted small">{{ item.submission.created_at.strftime('%Y-%m-%d %H:%M') if item.submission.created_at else '' }}</div>
+                      </div>
+                      {% if current_user and item.submitter and current_user.id == item.submitter.id %}
+                        <form method="post" action="{{ url_for('delete_proof_page', lobby_id=lobby.id, submission_id=item.submission.id) }}">
+                          <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                        </form>
+                      {% endif %}
+                    </div>
+                    <div class="mt-2">{{ item.submission.proof_link }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="text-muted">No proofs submitted yet.</div>
+            {% endif %}
+          </div>
+        </div>
+            <div class="card shadow-sm mt-3">
+              <div class="card-body">
+                <h2 class="h5">Rate teammates</h2>
+                <p class="text-muted mb-3">Pick a teammate on the left; update/delete your rating anytime.</p>
+
+                {% if current_user and is_member and teammates|length %}
+                  <div class="row g-3">
+                    <div class="col-5">
+                      <div class="nav nav-pills flex-column gap-2" id="rate-tab" role="tablist">
+                        {% for m in teammates %}
+                          {% set existing = viewer_ratings_by_target.get(m.id) %}
+                          <button class="nav-link text-start {% if loop.first %}active{% endif %} {% if existing %}border border-success{% else %}border border-light{% endif %}" id="rate-{{ m.id }}-tab" data-bs-toggle="pill" data-bs-target="#rate-{{ m.id }}" type="button" role="tab">
+                            <div class="d-flex justify-content-between align-items-center">
+                              <span class="fw-semibold">{{ m.name }}</span>
+                              {% if existing %}
+                                <span class="badge text-bg-success">Rated</span>
+                              {% else %}
+                                <span class="badge text-bg-secondary">New</span>
+                              {% endif %}
+                            </div>
+                          </button>
+                        {% endfor %}
+                      </div>
+                    </div>
+                    <div class="col-7">
+                      <div class="tab-content" id="rate-tabContent">
+                        {% for m in teammates %}
+                          {% set existing = viewer_ratings_by_target.get(m.id) %}
+                          <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="rate-{{ m.id }}" role="tabpanel">
+                            <form method="post" action="{{ url_for('rate_member_page', lobby_id=lobby.id) }}">
+                              <input type="hidden" name="target_user_id" value="{{ m.id }}">
+                              <div class="mb-2">
+                                <label class="form-label" for="contribution-{{ m.id }}">Contribution</label>
+                                <input class="form-control" id="contribution-{{ m.id }}" name="contribution" type="number" min="0" max="10" value="{{ existing.contribution if existing else 8 }}" required>
+                              </div>
+                              <div class="mb-2">
+                                <label class="form-label" for="communication-{{ m.id }}">Communication</label>
+                                <input class="form-control" id="communication-{{ m.id }}" name="communication" type="number" min="0" max="10" value="{{ existing.communication if existing else 8 }}" required>
+                              </div>
+                              <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="would-{{ m.id }}" name="would_work_again" {% if existing and existing.would_work_again %}checked{% endif %}>
+                                <label class="form-check-label" for="would-{{ m.id }}">Would work again</label>
+                              </div>
+                              <div class="mb-2">
+                                <label class="form-label" for="comment-{{ m.id }}">Comment</label>
+                                <textarea class="form-control" id="comment-{{ m.id }}" name="comment" rows="3" placeholder="Short feedback…">{{ existing.comment if existing and existing.comment else '' }}</textarea>
+                              </div>
+                              <div class="d-flex justify-content-end gap-2">
+                                <button class="btn btn-primary" type="submit">Save</button>
+                              </div>
+                            </form>
+
+                            {% if existing %}
+                              <form class="mt-2" method="post" action="{{ url_for('delete_rating_page', lobby_id=lobby.id, rating_id=existing.id) }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete rating</button>
+                              </form>
+                            {% endif %}
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                {% else %}
+                  <div class="alert alert-secondary mb-0">Log in as a team member to rate teammates.</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="card shadow-sm mt-3">
+              <div class="card-body">
+                <h2 class="h5">Ratings matrix</h2>
+                <p class="text-muted mb-3">Rows are receivers; columns are raters. Values are <span class="text-success fw-semibold">contribution</span>/<span class="text-primary fw-semibold">communication</span>.</p>
+
+                {% if members|length %}
+                  <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle text-center">
+                      <thead class="table-light">
+                        <tr>
+                          <th class="text-start">Receiver</th>
+                          {% for rater in members %}
+                            <th>{{ rater.name }}</th>
+                          {% endfor %}
+                          <th>Avg</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for receiver in members %}
+                          <tr>
+                            <th class="text-start">{{ receiver.name }}</th>
+                            {% for rater in members %}
+                              <td>
+                                {% if receiver.id == rater.id %}
+                                  <span class="text-muted">—</span>
+                                {% else %}
+                                  {% set cell = rating_by_pair.get((receiver.id, rater.id)) %}
+                                  {% if cell %}
+                                    (<span class="text-success fw-semibold">{{ cell.contribution }}</span>/<span class="text-primary fw-semibold">{{ cell.communication }}</span>)
+                                    {% if cell.comment %}
+                                      <button type="button" class="btn btn-link btn-sm p-0 ms-1" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top" title="Comment" data-bs-content="{{ cell.comment|e }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-chat-left-text" viewBox="0 0 16 16">
+                                          <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1z"/>
+                                          <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6m0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/>
+                                        </svg>
+                                      </button>
+                                    {% endif %}
+                                  {% else %}
+                                    <span class="text-muted">—</span>
+                                  {% endif %}
+                                {% endif %}
+                              </td>
+                            {% endfor %}
+                            <td>
+                              {% set a = avg_by_target.get(receiver.id) %}
+                              (<span class="text-success fw-semibold">{{ a.contribution }}</span>/<span class="text-primary fw-semibold">{{ a.communication }}</span>)
+                              <div class="small text-muted">n={{ a.count }}</div>
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <div class="text-muted">No ratings yet.</div>
+                {% endif %}
+              </div>
+            </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

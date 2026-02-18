@@ -11,6 +11,7 @@ class User(db.Model):
     contact = db.Column(db.String(500))
     phone = db.Column(db.String(80))
     email = db.Column(db.String(200))
+    password_hash = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -150,4 +151,29 @@ class Rating(db.Model):
             'communication': self.communication,
             'would_work_again': self.would_work_again,
             'comment': self.comment,
+        }
+
+
+class Invitation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    lobby_id = db.Column(db.Integer, db.ForeignKey('lobby.id'))
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
+    applicant_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    target_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    token = db.Column(db.String(200), unique=True, index=True)
+    status = db.Column(db.String(50), default='pending')  # pending, accepted, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    responded_at = db.Column(db.DateTime)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'lobby_id': self.lobby_id,
+            'team_id': self.team_id,
+            'applicant_id': self.applicant_id,
+            'target_user_id': self.target_user_id,
+            'token': self.token,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'responded_at': self.responded_at.isoformat() if self.responded_at else None,
         }

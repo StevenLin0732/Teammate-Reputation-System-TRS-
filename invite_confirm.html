@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirm Invitation{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-body">
+      <h1 class="h4">Invitation</h1>
+      <p class="mb-3">Click below to accept or reject the team invitation.</p>
+      <div class="d-flex gap-2">
+        <a class="btn btn-success" href="{{ accept_url }}">Accept</a>
+        <a class="btn btn-outline-secondary" href="{{ reject_url }}">Reject</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

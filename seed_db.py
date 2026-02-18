@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta
+import random
+import re
 from app import app
 from extensions import db
 from models import User, Lobby, Team, Submission, Rating
+from werkzeug.security import generate_password_hash
 
 
 def reset_db():
@@ -228,6 +231,25 @@ def seed_users():
             email="xavier.deng@example.com",
         ),
     ]
+    # regenerate emails to firstname + 3 random digits @duke.com (lowercase, unique)
+    used = set()
+    for u in users:
+        # derive base from first token of name
+        first = (u.name or 'user').split()[0].lower()
+        base = re.sub('[^a-z0-9]', '', first)
+        if not base:
+            base = 'user'
+        # pick unique 3-digit suffix
+        for _ in range(1000):
+            suffix = random.randint(100, 999)
+            email = f"{base}{suffix}@duke.com"
+            if email not in used:
+                used.add(email)
+                u.email = email
+                # set default password for seeded users
+                u.password_hash = generate_password_hash('123456')
+                break
+
     db.session.add_all(users)
     db.session.commit()
     return users

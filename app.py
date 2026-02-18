@@ -3,6 +3,9 @@ import os
 import secrets
 from datetime import datetime
 from sqlalchemy import text
+from werkzeug.security import generate_password_hash, check_password_hash
+import smtplib
+from email.message import EmailMessage
 
 from extensions import db
 
@@ -37,6 +40,7 @@ with app.app_context():
     _sqlite_add_column_if_missing('lobby', 'finished', 'finished BOOLEAN DEFAULT 0')
     _sqlite_add_column_if_missing('lobby', 'finished_at', 'finished_at DATETIME')
     _sqlite_add_column_if_missing('submission', 'submitter_id', 'submitter_id INTEGER')
+    _sqlite_add_column_if_missing('user', 'password_hash', 'password_hash TEXT')
 
 
 def get_current_user():
@@ -45,6 +49,41 @@ def get_current_user():
     if not user_id:
         return None
     return User.query.get(user_id)
+
+
+def _send_email(subject: str, to_email: str, body: str):
+    # Use SMTP settings if configured; otherwise log to console
+    smtp_host = app.config.get('SMTP_HOST')
+    smtp_port = app.config.get('SMTP_PORT') or 25
+    smtp_user = app.config.get('SMTP_USER')
+    smtp_pass = app.config.get('SMTP_PASS')
+    mail_from = app.config.get('MAIL_FROM') or 'noreply@example.com'
+
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = mail_from
+    msg['To'] = to_email
+    msg.set_content(body)
+
+    if not smtp_host:
+        # fallback: print to console
+        print('--- EMAIL (fallback) ---')
+        print('To:', to_email)
+        print('Subject:', subject)
+        print(body)
+        print('--- END EMAIL ---')
+        return
+
+    try:
+        s = smtplib.SMTP(smtp_host, int(smtp_port))
+        s.ehlo()
+        if smtp_user and smtp_pass:
+            s.starttls()
+            s.login(smtp_user, smtp_pass)
+        s.send_message(msg)
+        s.quit()
+    except Exception as e:
+        print('Failed to send email:', e)
 
 
 @app.context_processor
@@ -61,19 +100,21 @@ def index():
 def login():
     from models import User
     if request.method == 'POST':
-        selected = request.form.get('user_id')
-        try:
-            selected_id = int(selected)
-        except Exception:
-            selected_id = None
+        # Email/password authentication
+        email = (request.form.get('email') or '').strip()
+        password = (request.form.get('password') or '')
 
-        if not selected_id:
-            flash('Please choose a user to continue.', 'warning')
+        if not email or not password:
+            flash('Email and password are required.', 'warning')
             return redirect(url_for('login'))
 
-        user = User.query.get(selected_id)
-        if not user:
-            flash('That user does not exist.', 'danger')
+        user = User.query.filter_by(email=email).first()
+        if not user or not getattr(user, 'password_hash', None):
+            flash('Invalid credentials.', 'danger')
+            return redirect(url_for('login'))
+
+        if not check_password_hash(user.password_hash, password):
+            flash('Invalid credentials.', 'danger')
             return redirect(url_for('login'))
 
         session['user_id'] = user.id
@@ -81,8 +122,8 @@ def login():
         next_url = request.args.get('next')
         return redirect(next_url or url_for('me'))
 
-    users = User.query.order_by(User.name.asc()).all()
-    return render_template('login.html', users=users)
+    # GET: render login form
+    return render_template('login.html')
 
 
 @app.route('/logout', methods=['POST'])
@@ -90,6 +131,50 @@ def logout():
     session.pop('user_id', None)
     flash('Logged out.', 'secondary')
     return redirect(url_for('index'))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    from models import User
+    if request.method == 'POST':
+        name = (request.form.get('name') or '').strip() or 'Anonymous'
+        email = (request.form.get('email') or '').strip()
+        password = (request.form.get('password') or '')
+        major = (request.form.get('major') or '').strip() or None
+        year = (request.form.get('year') or '').strip() or None
+        bio = (request.form.get('bio') or '').strip() or None
+        contact = (request.form.get('contact') or '').strip() or None
+        phone = (request.form.get('phone') or '').strip() or None
+
+        if not email or not email.lower().endswith('@duke.edu'):
+            flash('Email must end with @duke.edu', 'danger')
+            return redirect(url_for('register'))
+        if not password or len(password) < 6:
+            flash('Password is required (min 6 characters).', 'warning')
+            return redirect(url_for('register'))
+
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            flash('An account with that email already exists. Please login.', 'warning')
+            return redirect(url_for('login'))
+
+        user = User(
+            name=name,
+            email=email,
+            major=major,
+            year=year,
+            bio=bio,
+            contact=contact,
+            phone=phone,
+            password_hash=generate_password_hash(password),
+        )
+        db.session.add(user)
+        db.session.commit()
+        session['user_id'] = user.id
+        flash('Account created and logged in.', 'success')
+        return redirect(url_for('me'))
+
+    return render_template('register.html')
 
 
 @app.route('/me')
@@ -229,6 +314,7 @@ def lobbies_page():
 @app.route('/lobbies/<int:lobby_id>', methods=['GET', 'POST'])
 def lobby_detail(lobby_id):
     from models import Lobby, Team, User, Rating
+    from models import Invitation
     lobby = Lobby.query.get_or_404(lobby_id)
     team = Team.query.filter_by(lobby_id=lobby.id).first()
     leader = User.query.get(lobby.leader_id) if lobby.leader_id else None
@@ -330,6 +416,7 @@ def lobby_detail(lobby_id):
         rating_by_pair=rating_by_pair,
         viewer_ratings_by_target=viewer_ratings_by_target,
         avg_by_target=avg_by_target,
+            invites=Invitation.query.filter_by(team_id=team.id).all() if team else [],
     )
 
 
@@ -544,12 +631,125 @@ def join_lobby_page(lobby_id):
     return redirect(url_for('lobby_detail', lobby_id=lobby.id))
 
 
+@app.route('/lobbies/<int:lobby_id>/invite', methods=['POST'])
+def invite_to_lobby(lobby_id):
+    from models import Lobby, Team, User, Invitation
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login', next=url_for('lobby_detail', lobby_id=lobby_id)))
+
+    lobby = Lobby.query.get_or_404(lobby_id)
+    team = Team.query.filter_by(lobby_id=lobby.id).first()
+    if not team:
+        flash('Team not found for this lobby.', 'danger')
+        return redirect(url_for('lobby_detail', lobby_id=lobby.id))
+    if lobby.finished:
+        flash('This contest is finished; inviting is disabled.', 'warning')
+        return redirect(url_for('lobby_detail', lobby_id=lobby.id))
+    if team.locked:
+        flash('Team is locked; cannot invite new members.', 'warning')
+        return redirect(url_for('lobby_detail', lobby_id=lobby.id))
+
+    email = (request.form.get('target_email') or '').strip()
+    if not email:
+        flash('Target email is required.', 'warning')
+        return redirect(url_for('lobby_detail', lobby_id=lobby.id))
+
+    target = User.query.filter_by(email=email).first()
+    if not target:
+        flash('No user with that email found. The user must register first.', 'warning')
+        return redirect(url_for('lobby_detail', lobby_id=lobby.id))
+
+    # prevent duplicate invite or if already member
+    if any(tm.user_id == target.id for tm in team.members):
+        flash('User is already a member of this team.', 'info')
+        return redirect(url_for('lobby_detail', lobby_id=lobby.id))
+
+    existing = Invitation.query.filter_by(team_id=team.id, target_user_id=target.id, status='pending').first()
+    if existing:
+        flash('A pending invitation already exists for that user.', 'info')
+        return redirect(url_for('lobby_detail', lobby_id=lobby.id))
+
+    token = secrets.token_urlsafe(24)
+    inv = Invitation(
+        lobby_id=lobby.id,
+        team_id=team.id,
+        applicant_id=user.id,
+        target_user_id=target.id,
+        token=token,
+        status='pending'
+    )
+    db.session.add(inv)
+    db.session.commit()
+
+    # send email with accept/reject links
+    accept_url = url_for('respond_invite', token=token, action='accept', _external=True)
+    reject_url = url_for('respond_invite', token=token, action='reject', _external=True)
+    subject = f"Team invite for '{lobby.title}' from {user.name}"
+    body = f"{user.name} has requested you join their team for lobby '{lobby.title}'.\n\nAccept: {accept_url}\nReject: {reject_url}\n\nIf you didn't expect this, ignore this email."
+    _send_email(subject, target.email, body)
+    flash('Invitation sent (or logged).', 'success')
+    return redirect(url_for('lobby_detail', lobby_id=lobby.id))
+
+
+@app.route('/invites/respond/<token>')
+def respond_invite(token):
+    from models import Invitation, Team, User
+    action = (request.args.get('action') or '').lower()
+    inv = Invitation.query.filter_by(token=token).first()
+    if not inv:
+        flash('Invalid invitation token.', 'danger')
+        return redirect(url_for('index'))
+
+    if inv.status != 'pending':
+        flash('This invitation has already been responded to.', 'info')
+        return redirect(url_for('lobby_detail', lobby_id=inv.lobby_id))
+
+    if action == 'accept':
+        # add target to team
+        team = Team.query.get(inv.team_id)
+        if team and not team.locked:
+            team.add_member(inv.target_user_id)
+            inv.status = 'accepted'
+            inv.responded_at = datetime.utcnow()
+            db.session.commit()
+            flash('You have accepted the invitation and joined the team.', 'success')
+        else:
+            flash('Team not found or locked.', 'danger')
+    elif action == 'reject':
+        inv.status = 'rejected'
+        inv.responded_at = datetime.utcnow()
+        db.session.commit()
+        flash('You have rejected the invitation.', 'secondary')
+    else:
+        # show simple page with accept/reject links
+        accept_url = url_for('respond_invite', token=token, action='accept', _external=True)
+        reject_url = url_for('respond_invite', token=token, action='reject', _external=True)
+        return render_template('invite_confirm.html', accept_url=accept_url, reject_url=reject_url)
+
+    return redirect(url_for('lobby_detail', lobby_id=inv.lobby_id))
+
+
 @app.route('/api/users', methods=['GET', 'POST'])
 def users():
     from models import User
     if request.method == 'POST':
         data = request.json or {}
-        user = User(name=data.get('name', 'Anonymous'), major=data.get('major'), year=data.get('year'))
+        name = data.get('name', 'Anonymous')
+        email = (data.get('email') or '').strip()
+        password = data.get('password')
+        major = data.get('major')
+        year = data.get('year')
+
+        if not email or not email.lower().endswith('@duke.edu'):
+            return jsonify({'error': 'email must end with @duke.edu'}), 400
+        if not password:
+            return jsonify({'error': 'password required'}), 400
+        # prevent duplicate emails
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'email already exists'}), 400
+
+        user = User(name=name, major=major, year=year, email=email, password_hash=generate_password_hash(password))
         db.session.add(user)
         db.session.commit()
         # optional: auto-join a lobby if lobby_id provided
