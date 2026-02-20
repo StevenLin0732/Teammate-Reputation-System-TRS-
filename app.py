@@ -34,6 +34,11 @@ with app.app_context():
 
     db.create_all()
 
+    if User.query.first() is None:
+        from seed_db import seed_users
+
+        seed_users()
+
 
 def _sqlite_column_exists(table_name: str, column_name: str) -> bool:
     rows = db.session.execute(text(f"PRAGMA table_info({table_name})")).all()
@@ -115,31 +120,33 @@ def index():
 def login():
     from models import User
 
+    if request.method == "GET":
+        users = User.query.order_by(User.name.asc()).all()
+        return render_template("login.html", users=users)
+
     if request.method == "POST":
         # Email/password authentication
         email = (request.form.get("email") or "").strip()
         password = request.form.get("password") or ""
+        users = User.query.order_by(User.name.asc()).all()
 
         if not email or not password:
             flash("Email and password are required.", "warning")
-            return redirect(url_for("login"))
+            return render_template("login.html", users=users)
 
         user = User.query.filter_by(email=email).first()
         if not user or not getattr(user, "password_hash", None):
             flash("Invalid credentials.", "danger")
-            return redirect(url_for("login"))
+            return render_template("login.html", users=users)
 
         if not check_password_hash(user.password_hash, password):
             flash("Invalid credentials.", "danger")
-            return redirect(url_for("login"))
+            return render_template("login.html", users=users)
 
         session["user_id"] = user.id
         flash(f"Logged in as {user.name}.", "success")
         next_url = request.args.get("next")
         return redirect(next_url or url_for("me"))
-
-    # GET: render login form
-    return render_template("login.html")
 
 
 @app.route("/logout", methods=["POST"])

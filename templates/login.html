@@ -7,21 +7,20 @@
     <div class="col-md-8 col-lg-6">
       <div class="card shadow-sm">
         <div class="card-body p-4">
-          <h1 class="h4 mb-1">Choose a user</h1>
-          <p class="text-muted mb-4">This is a demo login. No password required.</p>
+          <h1 class="h4 mb-1">Login</h1>
+          <p class="text-muted mb-4">Enter your credentials to access your account.</p>
 
           <form method="post" action="{{ url_for('login', next=request.args.get('next')) }}">
             <div class="mb-3">
-              <label class="form-label" for="user_id">User</label>
-              <select class="form-select" id="user_id" name="user_id" required>
-                <option value="" selected disabled>Pick a user…</option>
-                {% for u in users %}
-                  <option value="{{ u.id }}">{{ u.name }}{% if u.major %} · {{ u.major }}{% endif %}{% if u.year %} · {{ u.year }}{% endif %}</option>
-                {% endfor %}
-              </select>
+              <label class="form-label" for="email">Email</label>
+              <input class="form-control" type="email" id="email" name="email" placeholder="Enter your email" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="password">Password</label>
+              <input class="form-control" type="password" id="password" name="password" placeholder="Enter your password" required>
             </div>
             <div class="d-grid">
-              <button class="btn btn-primary" type="submit">Continue</button>
+              <button class="btn btn-primary" type="submit">Login</button>
             </div>
           </form>
 

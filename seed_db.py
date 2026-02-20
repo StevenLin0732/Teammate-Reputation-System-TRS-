@@ -235,11 +235,10 @@ def seed_users():
     used = set()
     for u in users:
         # derive base from first token of name
-        first = (u.name or 'user').split()[0].lower()
-        base = re.sub('[^a-z0-9]', '', first)
+        first = (u.name or "user").split()[0].lower()
+        base = re.sub("[^a-z0-9]", "", first)
         if not base:
-            base = 'user'
-        # pick unique 3-digit suffix
+            base = "user"
         for _ in range(1000):
             suffix = random.randint(100, 999)
             email = f"{base}{suffix}@duke.com"
@@ -247,7 +246,7 @@ def seed_users():
                 used.add(email)
                 u.email = email
                 # set default password for seeded users
-                u.password_hash = generate_password_hash('123456')
+                u.password_hash = generate_password_hash("123456")
                 break
 
     db.session.add_all(users)
@@ -296,7 +295,7 @@ def seed_ratings_full_matrix(team_id, member_ids, salt=0):
                 continue
             contribution = 6 + ((i + 2 * j + salt) % 5)
             communication = 6 + ((2 * i + j + salt) % 5)
-            would_work_again = ((i + j + salt) % 2 == 0)
+            would_work_again = (i + j + salt) % 2 == 0
             ratings.append(
                 Rating(
                     team_id=team_id,
@@ -339,7 +338,11 @@ def seed_finished_lobby(users, lobby_index, title, link, days_ago):
     team = create_team(lobby.id, locked=True)
     add_members(team, members)
 
-    seed_submission(team.id, submitter_id=leader_id, proof_link=f"https://devpost.com/software/{lobby.id}-{team.id}")
+    seed_submission(
+        team.id,
+        submitter_id=leader_id,
+        proof_link=f"https://devpost.com/software/{lobby.id}-{team.id}",
+    )
     seed_ratings_full_matrix(team.id, members, salt=(lobby.id + lobby_index))
     return lobby
 
@@ -367,19 +370,44 @@ def main():
         reset_db()
         users = seed_users()
 
-        seed_finished_lobby(users, 0, "Hackathon A", "https://example.com/hackathon-a", 1)
-        seed_finished_lobby(users, 1, "Hackathon B", "https://example.com/hackathon-b", 3)
-        seed_finished_lobby(users, 2, "Hackathon C", "https://example.com/hackathon-c", 7)
-        seed_finished_lobby(users, 3, "Hackathon D", "https://example.com/hackathon-d", 10)
+        seed_finished_lobby(
+            users, 0, "Hackathon A", "https://example.com/hackathon-a", 1
+        )
+        seed_finished_lobby(
+            users, 1, "Hackathon B", "https://example.com/hackathon-b", 3
+        )
+        seed_finished_lobby(
+            users, 2, "Hackathon C", "https://example.com/hackathon-c", 7
+        )
+        seed_finished_lobby(
+            users, 3, "Hackathon D", "https://example.com/hackathon-d", 10
+        )
 
-        seed_open_lobby(users, 4, "Contest E", "https://example.com/contest-e", locked=False)
-        seed_open_lobby(users, 5, "Contest F", "https://example.com/contest-f", locked=False)
-        seed_open_lobby(users, 6, "Contest G", "https://example.com/contest-g", locked=True)
-        seed_open_lobby(users, 7, "Contest H", "https://example.com/contest-h", locked=False)
-        seed_open_lobby(users, 8, "Contest I", "https://example.com/contest-i", locked=True)
-        seed_open_lobby(users, 9, "Contest J", "https://example.com/contest-j", locked=False)
+        seed_open_lobby(
+            users, 4, "Contest E", "https://example.com/contest-e", locked=False
+        )
+        seed_open_lobby(
+            users, 5, "Contest F", "https://example.com/contest-f", locked=False
+        )
+        seed_open_lobby(
+            users, 6, "Contest G", "https://example.com/contest-g", locked=True
+        )
+        seed_open_lobby(
+            users, 7, "Contest H", "https://example.com/contest-h", locked=False
+        )
+        seed_open_lobby(
+            users, 8, "Contest I", "https://example.com/contest-i", locked=True
+        )
+        seed_open_lobby(
+            users, 9, "Contest J", "https://example.com/contest-j", locked=False
+        )
 
         print("Seed complete.")
+        print(f"Total users seeded: {len(users)}")
+        print("To login, use any email from the seeded users with password: 123456")
+        print(
+            "Visit /users to see all users or restart the app to auto-seed on next start."
+        )
 
 
 if __name__ == "__main__":
