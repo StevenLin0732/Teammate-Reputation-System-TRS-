@@ -70,6 +70,27 @@
           {% else %}
             <div class="text-muted">No members yet.</div>
           {% endif %}
+
+          {% if current_user and team and (not team.locked) and (not lobby.finished) %}
+            <hr>
+            <form class="row g-2" method="post" action="{{ url_for('invite_to_lobby', lobby_id=lobby.id) }}">
+              <div class="col-8">
+                <input class="form-control form-control-sm" id="target_email" name="target_email" placeholder="Invite user by email (@duke.edu)" required>
+              </div>
+              <div class="col-4 d-flex">
+                <button class="btn btn-sm btn-outline-primary ms-auto" type="submit">Request teammate</button>
+              </div>
+            </form>
+
+            {% if invites and invites|length %}
+              <div class="mt-2 small text-muted">Pending invitations:</div>
+              <ul class="list-unstyled small">
+                {% for inv in invites %}
+                  <li>{{ inv.to_dict().applicant_id }} → {{ inv.to_dict().target_user_id }} · <span class="text-muted">{{ inv.status }}</span></li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          {% endif %}
         </div>
       </div>
     </div>

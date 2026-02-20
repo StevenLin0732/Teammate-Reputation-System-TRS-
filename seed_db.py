@@ -333,7 +333,7 @@ def seed_finished_lobby(users, lobby_index, title, link, days_ago):
         link=link,
         leader_id=leader_id,
         finished=True,
-        finished_at=datetime.utcnow() - timedelta(days=days_ago),
+        finished_at=datetime.now() - timedelta(days=days_ago),
     )
 
     team = create_team(lobby.id, locked=True)
