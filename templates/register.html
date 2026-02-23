@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width: 720px;">
+  <h2 class="mt-4 mb-3">Register</h2>
+
+  <div class="alert alert-info">
+    Use a <b>@duke.edu</b> email. Password must be at least 6 characters.
+  </div>
+
+  <form method="post" action="{{ url_for('register') }}">
+    <div class="mb-3">
+      <label class="form-label">Name</label>
+      <input class="form-control" name="name" placeholder="Your name" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Email (@duke.edu)</label>
+      <input class="form-control" name="email" type="email" placeholder="netid@duke.edu" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Password</label>
+      <input class="form-control" name="password" type="password" minlength="6" required>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Major (optional)</label>
+        <input class="form-control" name="major">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Year (optional)</label>
+        <input class="form-control" name="year">
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Bio (optional)</label>
+      <textarea class="form-control" name="bio" rows="3"></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Contact (optional)</label>
+      <input class="form-control" name="contact" placeholder="GitHub / Discord / LinkedIn">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Phone (optional)</label>
+      <input class="form-control" name="phone">
+    </div>
+
+    <button class="btn btn-primary" type="submit">Create account</button>
+    <a class="btn btn-link" href="{{ url_for('login') }}">Already have an account? Login</a>
+  </form>
+</div>
+{% endblock %}
