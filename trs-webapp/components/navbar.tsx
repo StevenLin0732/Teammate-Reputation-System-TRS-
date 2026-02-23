@@ -70,9 +70,14 @@ export function Navbar({ currentUser }: NavbarProps) {
                 </Button>
               </>
             ) : (
+              <>
+              <Link href="/register">
+                <Button variant="outline" size="sm">Register</Button>
+              </Link>
               <Link href="/login">
                 <Button size="sm">Login</Button>
               </Link>
+              </>
             )}
           </div>
         </div>
