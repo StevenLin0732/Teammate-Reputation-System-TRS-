@@ -21,7 +21,7 @@ def seed_users():
             bio="Backend-focused. Flask + SQLAlchemy + SQLite. Strong with API design and data modeling.",
             contact="GitHub: github.com/alicezhang | Discord: alice#1024 | LinkedIn: linkedin.com/in/alicezhang",
             phone="919-555-0101",
-            email="alice.zhang@example.com",
+            email="alice.zhang@duke.edu",
         ),
         User(
             name="Bob Lin",
@@ -30,7 +30,7 @@ def seed_users():
             bio="Algorithms & systems. Strong in C++/Python, optimization, and debugging edge cases.",
             contact="GitHub: github.com/boblin | Discord: bob#2048 | WeChat: boblin_math",
             phone="919-555-0102",
-            email="bob.lin@example.com",
+            email="bob.lin@duke.edu",
         ),
         User(
             name="Cathy Wu",
@@ -39,7 +39,7 @@ def seed_users():
             bio="ML & data. Pandas/Numpy, evaluation metrics, feature engineering, baseline modeling.",
             contact="GitHub: github.com/cathywu | LinkedIn: linkedin.com/in/cathywu | Discord: cathy#7788",
             phone="919-555-0103",
-            email="cathy.wu@example.com",
+            email="cathy.wu@duke.edu",
         ),
         User(
             name="David Chen",
@@ -48,7 +48,7 @@ def seed_users():
             bio="Frontend + integration. JavaScript/HTML/CSS, Bootstrap, and wiring UI to REST APIs.",
             contact="GitHub: github.com/davidchen | Discord: david#3344 | Portfolio: davidchen.dev",
             phone="919-555-0104",
-            email="david.chen@example.com",
+            email="david.chen@duke.edu",
         ),
         User(
             name="Evan Li",
@@ -57,7 +57,7 @@ def seed_users():
             bio="Product & pitching. Milestones, demos, writing clear requirements, and presenting.",
             contact="LinkedIn: linkedin.com/in/evanli | Discord: evan#5566 | Email preferred",
             phone="919-555-0105",
-            email="evan.li@example.com",
+            email="evan.li@duke.edu",
         ),
         User(
             name="Fiona Wang",
@@ -66,7 +66,7 @@ def seed_users():
             bio="UI/UX. Bootstrap layouts, usability-focused flows, quick iteration with clean styling.",
             contact="GitHub: github.com/fionawang | Behance: behance.net/fionawang | Discord: fiona#1212",
             phone="919-555-0106",
-            email="fiona.wang@example.com",
+            email="fiona.wang@duke.edu",
         ),
         User(
             name="Grace Zhao",
@@ -75,7 +75,7 @@ def seed_users():
             bio="Experimentation & analytics. A/B tests, scoring robustness, and communicating results.",
             contact="LinkedIn: linkedin.com/in/gracezhao | Discord: grace#9090 | WeChat: grace_stats",
             phone="919-555-0107",
-            email="grace.zhao@example.com",
+            email="grace.zhao@duke.edu",
         ),
         User(
             name="Henry Sun",
@@ -84,7 +84,7 @@ def seed_users():
             bio="Systems + performance. Profiling, reliability, and making code stable under constraints.",
             contact="GitHub: github.com/henrysun | Discord: henry#7878 | Email preferred",
             phone="919-555-0108",
-            email="henry.sun@example.com",
+            email="henry.sun@duke.edu",
         ),
         User(
             name="Ivy Gao",
@@ -93,7 +93,7 @@ def seed_users():
             bio="Backend engineer. CRUD APIs, schema design, and clean service boundaries.",
             contact="GitHub: github.com/ivygao | Discord: ivy#2323 | LinkedIn: linkedin.com/in/ivygao",
             phone="919-555-0109",
-            email="ivy.gao@example.com",
+            email="ivy.gao@duke.edu",
         ),
         User(
             name="Jack He",
@@ -102,7 +102,7 @@ def seed_users():
             bio="Logic + algorithms. Correctness, tests, and writing clean maintainable code.",
             contact="GitHub: github.com/jackhe | Discord: jack#1717 | WeChat: jack_logic",
             phone="919-555-0110",
-            email="jack.he@example.com",
+            email="jack.he@duke.edu",
         ),
         User(
             name="Kelly Huang",
@@ -111,7 +111,7 @@ def seed_users():
             bio="Research & narrative. Surveys, validating assumptions, and polishing documentation.",
             contact="LinkedIn: linkedin.com/in/kellyhuang | Discord: kelly#4848 | Email preferred",
             phone="919-555-0111",
-            email="kelly.huang@example.com",
+            email="kelly.huang@duke.edu",
         ),
         User(
             name="Leo Xu",
@@ -120,7 +120,7 @@ def seed_users():
             bio="DevOps mindset. Git workflows, CI basics, and keeping repos organized for teamwork.",
             contact="GitHub: github.com/leoxu | Discord: leo#6060 | Email preferred",
             phone="919-555-0112",
-            email="leo.xu@example.com",
+            email="leo.xu@duke.edu",
         ),
         User(
             name="Mia Yang",
@@ -129,7 +129,7 @@ def seed_users():
             bio="Visualization & dashboards. Clear charts, summary pages, and interpreting patterns.",
             contact="GitHub: github.com/miayang | Discord: mia#3131 | Portfolio: miayang.dev",
             phone="919-555-0113",
-            email="mia.yang@example.com",
+            email="mia.yang@duke.edu",
         ),
         User(
             name="Noah Liu",
@@ -138,7 +138,7 @@ def seed_users():
             bio="Hardware-software bridge. Careful debugging and reliable implementation habits.",
             contact="GitHub: github.com/noahliu | Discord: noah#1414 | WeChat: noah_ece",
             phone="919-555-0114",
-            email="noah.liu@example.com",
+            email="noah.liu@duke.edu",
         ),
         User(
             name="Olivia Qian",
@@ -147,7 +147,7 @@ def seed_users():
             bio="Frontend specialist. Strong HTML/CSS, solid UX intuition, quick UI iteration.",
             contact="GitHub: github.com/oliviaqian | Discord: olivia#8888 | Portfolio: oliviaqian.dev",
             phone="919-555-0115",
-            email="olivia.qian@example.com",
+            email="olivia.qian@duke.edu",
         ),
         User(
             name="Peter Ren",
@@ -156,7 +156,7 @@ def seed_users():
             bio="Metrics & evaluation. Reputation aggregation, robustness, and reducing noisy ratings.",
             contact="LinkedIn: linkedin.com/in/peterren | Discord: peter#2525 | WeChat: peter_stats",
             phone="919-555-0116",
-            email="peter.ren@example.com",
+            email="peter.ren@duke.edu",
         ),
         User(
             name="Quinn Zhou",
@@ -165,7 +165,7 @@ def seed_users():
             bio="Operations. Standups, task tracking, and keeping teams on schedule.",
             contact="LinkedIn: linkedin.com/in/quinnzhou | Discord: quinn#3636 | Email preferred",
             phone="919-555-0117",
-            email="quinn.zhou@example.com",
+            email="quinn.zhou@duke.edu",
         ),
         User(
             name="Ruby Tang",
@@ -174,7 +174,7 @@ def seed_users():
             bio="Simulation & problem solving. Turns vague specs into testable steps and clean logic.",
             contact="GitHub: github.com/rubytang | Discord: ruby#4545 | Email preferred",
             phone="919-555-0118",
-            email="ruby.tang@example.com",
+            email="ruby.tang@duke.edu",
         ),
         User(
             name="Sam Gu",
@@ -183,7 +183,7 @@ def seed_users():
             bio="Full-stack generalist. Flask + templates, basic JS, and connecting forms to routes.",
             contact="GitHub: github.com/samgu | Discord: sam#5656 | LinkedIn: linkedin.com/in/samgu",
             phone="919-555-0119",
-            email="sam.gu@example.com",
+            email="sam.gu@duke.edu",
         ),
         User(
             name="Tina Fan",
@@ -192,7 +192,7 @@ def seed_users():
             bio="Data cleaning & ML basics. Prepares datasets, runs baselines, writes experiment notes.",
             contact="GitHub: github.com/tinafan | Discord: tina#6767 | Email preferred",
             phone="919-555-0120",
-            email="tina.fan@example.com",
+            email="tina.fan@duke.edu",
         ),
         User(
             name="Uma Shen",
@@ -201,7 +201,7 @@ def seed_users():
             bio="Research & writing. Strong documentation, proposals, and summarizing decisions.",
             contact="LinkedIn: linkedin.com/in/umashen | Discord: uma#7870 | Email preferred",
             phone="919-555-0121",
-            email="uma.shen@example.com",
+            email="uma.shen@duke.edu",
         ),
         User(
             name="Victor Ma",
@@ -210,7 +210,7 @@ def seed_users():
             bio="Competitive programming. Fast implementation, strong debugging, and constraints handling.",
             contact="GitHub: github.com/victorma | Discord: victor#8989 | WeChat: victor_cp",
             phone="919-555-0122",
-            email="victor.ma@example.com",
+            email="victor.ma@duke.edu",
         ),
         User(
             name="Wendy Luo",
@@ -219,7 +219,7 @@ def seed_users():
             bio="UI + integration. Polishing flows, form validation, and improving user experience.",
             contact="GitHub: github.com/wendyluo | Discord: wendy#9091 | Portfolio: wendyluo.dev",
             phone="919-555-0123",
-            email="wendy.luo@example.com",
+            email="wendy.luo@duke.edu",
         ),
         User(
             name="Xavier Deng",
@@ -228,10 +228,10 @@ def seed_users():
             bio="Scoring systems. Interested in robust aggregation and reducing gaming of ratings.",
             contact="LinkedIn: linkedin.com/in/xavierdeng | Discord: xavier#1010 | Email preferred",
             phone="919-555-0124",
-            email="xavier.deng@example.com",
+            email="xavier.deng@duke.edu",
         ),
     ]
-    # regenerate emails to firstname + 3 random digits @duke.com (lowercase, unique)
+    # regenerate emails to firstname + 3 random digits @duke.edu (lowercase, unique)
     used = set()
     for u in users:
         # derive base from first token of name
@@ -241,7 +241,7 @@ def seed_users():
             base = "user"
         for _ in range(1000):
             suffix = random.randint(100, 999)
-            email = f"{base}{suffix}@duke.com"
+            email = f"{base}{suffix}@duke.edu"
             if email not in used:
                 used.add(email)
                 u.email = email
