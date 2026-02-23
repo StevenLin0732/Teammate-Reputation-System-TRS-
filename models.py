@@ -177,3 +177,29 @@ class Invitation(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'responded_at': self.responded_at.isoformat() if self.responded_at else None,
         }
+
+from datetime import datetime
+from extensions import db
+
+class JoinRequest(db.Model):
+    __tablename__ = "join_request"
+
+    id = db.Column(db.Integer, primary_key=True)
+    lobby_id = db.Column(db.Integer, db.ForeignKey("lobby.id"), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey("team.id"), nullable=False)
+    requester_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    status = db.Column(db.String(20), nullable=False, default="pending")  # pending/accepted/rejected/canceled
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "lobby_id": self.lobby_id,
+            "team_id": self.team_id,
+            "requester_id": self.requester_id,
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }

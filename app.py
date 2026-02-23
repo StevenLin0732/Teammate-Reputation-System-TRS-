@@ -8,6 +8,7 @@ from flask import (
     session,
     flash,
 )
+from flask_cors import CORS
 import os
 import secrets
 from datetime import datetime
@@ -19,6 +20,14 @@ from email.message import EmailMessage
 from extensions import db
 
 app = Flask(__name__, template_folder="templates")
+CORS(
+    app,
+    supports_credentials=True,
+    origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+)
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(
     basedir, "teamrank.db"
@@ -30,7 +39,7 @@ db.init_app(app)
 
 with app.app_context():
     # import models so tables are registered
-    from models import User, Lobby, Team, Submission, Rating
+    from models import User, Lobby, Team, Submission, Rating, JoinRequest
 
     db.create_all()
 
@@ -1038,3 +1047,104 @@ def user_reputation(user_id):
 if __name__ == "__main__":
     # run without the reloader to avoid external shell tool dependencies in some terminals
     app.run(debug=False)
+
+@app.route("/api/lobbies/<int:lobby_id>/join-requests", methods=["POST"])
+def api_create_join_request(lobby_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "not_logged_in"}), 401
+
+    lobby = Lobby.query.get_or_404(lobby_id)
+    team = Team.query.filter_by(lobby_id=lobby.id).first()
+    if not team:
+        return jsonify({"error": "team_not_found"}), 404
+
+    if lobby.finished:
+        return jsonify({"error": "lobby_finished"}), 400
+    if team.locked:
+        return jsonify({"error": "team_locked"}), 400
+
+    if any(tm.user_id == user.id for tm in team.members):
+        return jsonify({"error": "already_member"}), 400
+
+    existing = JoinRequest.query.filter_by(
+        lobby_id=lobby.id,
+        team_id=team.id,
+        requester_id=user.id,
+        status="pending",
+    ).first()
+    if existing:
+        return jsonify({"error": "already_pending", "request": existing.to_dict()}), 400
+
+    jr = JoinRequest(lobby_id=lobby.id, team_id=team.id, requester_id=user.id, status="pending")
+    db.session.add(jr)
+    db.session.commit()
+    return jsonify(jr.to_dict()), 201
+
+@app.route("/api/lobbies/<int:lobby_id>/join-requests", methods=["GET"])
+def api_list_join_requests(lobby_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "not_logged_in"}), 401
+
+    lobby = Lobby.query.get_or_404(lobby_id)
+    if lobby.leader_id != user.id:
+        return jsonify({"error": "leader_only"}), 403
+
+    team = Team.query.filter_by(lobby_id=lobby.id).first()
+    if not team:
+        return jsonify({"error": "team_not_found"}), 404
+
+    status = (request.args.get("status") or "pending").strip().lower()
+    q = JoinRequest.query.filter_by(lobby_id=lobby.id, team_id=team.id)
+    if status in {"pending", "accepted", "rejected", "canceled"}:
+        q = q.filter_by(status=status)
+
+    reqs = q.order_by(JoinRequest.created_at.asc()).all()
+    return jsonify([r.to_dict() for r in reqs]), 200
+
+@app.route("/api/lobbies/<int:lobby_id>/join-requests/<int:request_id>/decision", methods=["POST"])
+def api_decide_join_request(lobby_id, request_id):
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "not_logged_in"}), 401
+
+    lobby = Lobby.query.get_or_404(lobby_id)
+    if lobby.leader_id != user.id:
+        return jsonify({"error": "leader_only"}), 403
+
+    team = Team.query.filter_by(lobby_id=lobby.id).first()
+    if not team:
+        return jsonify({"error": "team_not_found"}), 404
+
+    jr = JoinRequest.query.get_or_404(request_id)
+    if jr.lobby_id != lobby.id or jr.team_id != team.id:
+        return jsonify({"error": "invalid_request"}), 400
+
+    if jr.status != "pending":
+        return jsonify({"error": "not_pending", "request": jr.to_dict()}), 400
+
+    data = request.get_json(silent=True) or {}
+    decision = (data.get("decision") or "").strip().lower()
+    if decision not in {"accept", "reject"}:
+        return jsonify({"error": "invalid_decision"}), 400
+
+    if lobby.finished:
+        return jsonify({"error": "lobby_finished"}), 400
+    if team.locked:
+        return jsonify({"error": "team_locked"}), 400
+
+    if decision == "reject":
+        jr.status = "rejected"
+        db.session.commit()
+        return jsonify(jr.to_dict()), 200
+
+    if any(tm.user_id == jr.requester_id for tm in team.members):
+        jr.status = "accepted"
+        db.session.commit()
+        return jsonify(jr.to_dict()), 200
+
+    team.add_member(jr.requester_id)
+    jr.status = "accepted"
+    db.session.commit()
+    return jsonify(jr.to_dict()), 200
