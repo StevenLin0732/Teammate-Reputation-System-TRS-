@@ -34,6 +34,12 @@
               <li class="nav-item">
                 <a class="nav-link {% if request.path == '/me' %}active{% endif %}" href="{{ url_for('me') }}">My profile</a>
               </li>
+              <li class="nav-item">
+                <a class="nav-link {% if request.path.startswith('/invites') %}active{% endif %}" href="{{ url_for('invites_page') }}">Invites</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if request.path.startswith('/join-requests') %}active{% endif %}" href="{{ url_for('join_requests_page') }}">Join requests</a>
+              </li>
               <li class="nav-item ms-lg-2">
                 <form class="d-flex" method="post" action="{{ url_for('logout') }}">
                   <button class="btn btn-sm btn-outline-light" type="submit">Logout ({{ current_user.name }})</button>

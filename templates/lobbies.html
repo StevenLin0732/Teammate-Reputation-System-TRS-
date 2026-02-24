@@ -51,9 +51,13 @@
                 {% if lobby.role %}
                   <button class="btn btn-sm btn-secondary" type="button" disabled>{{ lobby.role }}</button>
                 {% elif (not lobby.finished) and (not lobby.team_locked) %}
-                  <form method="post" action="{{ url_for('join_lobby_page', lobby_id=lobby.id) }}">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit">Join</button>
-                  </form>
+                  {% if lobby.join_request_status == 'pending' %}
+                    <button class="btn btn-sm btn-outline-secondary" type="button" disabled>Requested</button>
+                  {% else %}
+                    <form method="post" action="{{ url_for('create_join_request_page', lobby_id=lobby.id) }}">
+                      <button class="btn btn-sm btn-outline-secondary" type="submit">Request to join</button>
+                    </form>
+                  {% endif %}
                 {% endif %}
               {% endif %}
             </div>

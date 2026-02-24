@@ -345,11 +345,19 @@ def user_profile(user_id):
 
 @app.route("/lobbies")
 def lobbies_page():
-    from models import Lobby, Team
+    from models import Lobby, Team, JoinRequest
 
     qs = Lobby.query.order_by(Lobby.created_at.desc()).all()
     lobbies = []
     viewer = get_current_user()
+
+    pending_by_lobby_id = {}
+    if viewer:
+        pending = JoinRequest.query.filter_by(
+            requester_id=viewer.id, status="pending"
+        ).all()
+        pending_by_lobby_id = {r.lobby_id: r for r in pending}
+
     for q in qs:
         team = Team.query.filter_by(lobby_id=q.id).first()
         participant_count = len(team.members) if team else 0
@@ -364,13 +372,16 @@ def lobbies_page():
             elif team and any(tm.user_id == viewer.id for tm in team.members):
                 role = "Member"
         d["role"] = role
+
+        req = pending_by_lobby_id.get(q.id)
+        d["join_request_status"] = req.status if req else None
         lobbies.append(d)
     return render_template("lobbies.html", lobbies=lobbies)
 
 
 @app.route("/lobbies/<int:lobby_id>", methods=["GET", "POST"])
 def lobby_detail(lobby_id):
-    from models import Lobby, Team, User, Rating
+    from models import Lobby, Team, User, Rating, JoinRequest
     from models import Invitation
 
     lobby = Lobby.query.get_or_404(lobby_id)
@@ -394,6 +405,22 @@ def lobby_detail(lobby_id):
     is_member = False
     if viewer and team:
         is_member = any(tm.user_id == viewer.id for tm in team.members)
+
+    viewer_join_request = None
+    if viewer and team and (not is_member):
+        viewer_join_request = JoinRequest.query.filter_by(
+            lobby_id=lobby.id, team_id=team.id, requester_id=viewer.id
+        ).order_by(JoinRequest.created_at.desc()).first()
+
+    join_requests = []
+    if is_leader and team:
+        reqs = (
+            JoinRequest.query.filter_by(lobby_id=lobby.id, team_id=team.id)
+            .order_by(JoinRequest.created_at.asc())
+            .all()
+        )
+        for r in reqs:
+            join_requests.append({"request": r, "requester": User.query.get(r.requester_id)})
 
     submissions = []
     if team:
@@ -490,6 +517,8 @@ def lobby_detail(lobby_id):
         members=members,
         is_leader=is_leader,
         is_member=is_member,
+        viewer_join_request=viewer_join_request,
+        join_requests=join_requests,
         submissions=submissions,
         teammates=teammates,
         ratings=ratings,
@@ -707,30 +736,103 @@ def create_lobby_page():
     return render_template("lobby_new.html")
 
 
-@app.route("/lobbies/<int:lobby_id>/join", methods=["POST"])
-def join_lobby_page(lobby_id):
+@app.route("/lobbies/<int:lobby_id>/join-requests", methods=["POST"])
+def create_join_request_page(lobby_id):
+    from models import Lobby, Team, JoinRequest
+
     user = get_current_user()
     if not user:
-        return redirect(
-            url_for("login", next=url_for("lobby_detail", lobby_id=lobby_id))
-        )
-
-    from models import Lobby, Team
+        return redirect(url_for("login", next=url_for("lobby_detail", lobby_id=lobby_id)))
 
     lobby = Lobby.query.get_or_404(lobby_id)
     team = Team.query.filter_by(lobby_id=lobby.id).first()
     if not team:
         flash("Team not found for this lobby.", "danger")
-        return redirect(url_for("lobbies_page"))
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
     if lobby.finished:
         flash("This contest is finished; joining is disabled.", "warning")
         return redirect(url_for("lobby_detail", lobby_id=lobby.id))
     if team.locked:
+        flash("Team is locked; cannot request to join.", "warning")
         return redirect(url_for("lobby_detail", lobby_id=lobby.id))
 
-    team.add_member(user.id)
+    if any(tm.user_id == user.id for tm in team.members):
+        flash("You are already a team member.", "info")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    existing = JoinRequest.query.filter_by(
+        lobby_id=lobby.id,
+        team_id=team.id,
+        requester_id=user.id,
+        status="pending",
+    ).first()
+    if existing:
+        flash("Join request already pending.", "info")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    jr = JoinRequest(lobby_id=lobby.id, team_id=team.id, requester_id=user.id, status="pending")
+    db.session.add(jr)
     db.session.commit()
-    flash("Joined lobby.", "success")
+    flash("Join request submitted.", "success")
+    return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+
+@app.route(
+    "/lobbies/<int:lobby_id>/join-requests/<int:request_id>/decision",
+    methods=["POST"],
+)
+def decide_join_request_page(lobby_id, request_id):
+    from models import Lobby, Team, JoinRequest
+
+    user = get_current_user()
+    if not user:
+        return redirect(url_for("login", next=url_for("lobby_detail", lobby_id=lobby_id)))
+
+    lobby = Lobby.query.get_or_404(lobby_id)
+    if lobby.leader_id != user.id:
+        flash("Only the lobby leader can decide join requests.", "danger")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    team = Team.query.filter_by(lobby_id=lobby.id).first()
+    if not team:
+        flash("Team not found for this lobby.", "danger")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    jr = JoinRequest.query.get_or_404(request_id)
+    if jr.lobby_id != lobby.id or jr.team_id != team.id:
+        flash("Invalid join request.", "danger")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    if jr.status != "pending":
+        flash("This join request is no longer pending.", "info")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    decision = (request.form.get("decision") or "").strip().lower()
+    if decision not in {"accept", "reject"}:
+        flash("Invalid decision.", "danger")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    if lobby.finished or team.locked:
+        flash("Team is not accepting new members.", "warning")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    if decision == "reject":
+        jr.status = "rejected"
+        db.session.commit()
+        flash("Join request rejected.", "secondary")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    if any(tm.user_id == jr.requester_id for tm in team.members):
+        jr.status = "accepted"
+        db.session.commit()
+        flash("Requester is already a member.", "info")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
+
+    team.add_member(jr.requester_id)
+    jr.status = "accepted"
+    db.session.commit()
+    flash("Join request accepted; member added.", "success")
     return redirect(url_for("lobby_detail", lobby_id=lobby.id))
 
 
@@ -745,6 +847,9 @@ def invite_to_lobby(lobby_id):
         )
 
     lobby = Lobby.query.get_or_404(lobby_id)
+    if lobby.leader_id != user.id:
+        flash("Only the lobby leader can invite teammates.", "danger")
+        return redirect(url_for("lobby_detail", lobby_id=lobby.id))
     team = Team.query.filter_by(lobby_id=lobby.id).first()
     if not team:
         flash("Team not found for this lobby.", "danger")
@@ -845,6 +950,75 @@ def respond_invite(token):
     return redirect(url_for("lobby_detail", lobby_id=inv.lobby_id))
 
 
+@app.route("/invites")
+def invites_page():
+    from models import Invitation, Lobby, User
+
+    user = get_current_user()
+    if not user:
+        return redirect(url_for("login", next=url_for("invites_page")))
+
+    received = (
+        Invitation.query.filter_by(target_user_id=user.id)
+        .order_by(Invitation.created_at.desc())
+        .all()
+    )
+    sent = (
+        Invitation.query.filter_by(applicant_id=user.id)
+        .order_by(Invitation.created_at.desc())
+        .all()
+    )
+
+    lobby_by_id = {l.id: l for l in Lobby.query.filter(Lobby.id.in_({i.lobby_id for i in received + sent})).all()} if (received or sent) else {}
+    user_ids = {i.applicant_id for i in received + sent} | {i.target_user_id for i in received + sent}
+    users_by_id = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
+    return render_template(
+        "invites.html",
+        received=received,
+        sent=sent,
+        lobby_by_id=lobby_by_id,
+        users_by_id=users_by_id,
+    )
+
+
+@app.route("/join-requests")
+def join_requests_page():
+    from models import JoinRequest, Lobby, User
+
+    user = get_current_user()
+    if not user:
+        return redirect(url_for("login", next=url_for("join_requests_page")))
+
+    made = (
+        JoinRequest.query.filter_by(requester_id=user.id)
+        .order_by(JoinRequest.created_at.desc())
+        .all()
+    )
+
+    leader_lobbies = Lobby.query.filter_by(leader_id=user.id).all()
+    leader_lobby_ids = {l.id for l in leader_lobbies}
+    received = (
+        JoinRequest.query.filter(JoinRequest.lobby_id.in_(leader_lobby_ids)).order_by(JoinRequest.created_at.desc()).all()
+        if leader_lobby_ids
+        else []
+    )
+
+    lobby_ids = {r.lobby_id for r in made + received}
+    lobby_by_id = {l.id: l for l in Lobby.query.filter(Lobby.id.in_(lobby_ids)).all()} if lobby_ids else {}
+
+    requester_ids = {r.requester_id for r in made + received}
+    users_by_id = {u.id: u for u in User.query.filter(User.id.in_(requester_ids)).all()} if requester_ids else {}
+
+    return render_template(
+        "join_requests.html",
+        made=made,
+        received=received,
+        lobby_by_id=lobby_by_id,
+        users_by_id=users_by_id,
+    )
+
+
 @app.route("/api/users", methods=["GET", "POST"])
 def users():
     from models import User
@@ -874,20 +1048,6 @@ def users():
         )
         db.session.add(user)
         db.session.commit()
-        # optional: auto-join a lobby if lobby_id provided
-        lobby_id = data.get("lobby_id")
-        if lobby_id:
-            try:
-                lobby_id = int(lobby_id)
-            except Exception:
-                lobby_id = None
-        if lobby_id:
-            from models import Team
-
-            team = Team.query.filter_by(lobby_id=lobby_id).first()
-            if team and not team.locked:
-                team.add_member(user.id)
-                db.session.commit()
         return jsonify(user.to_dict()), 201
     users = User.query.all()
     return jsonify([u.to_dict() for u in users])
@@ -950,27 +1110,6 @@ def lobbies():
         d["participant_count"] = count
         out.append(d)
     return jsonify(out)
-
-
-@app.route("/api/lobbies/<int:lobby_id>/join", methods=["POST"])
-def join_lobby(lobby_id):
-    from models import Lobby, Team
-
-    data = request.json or {}
-    user_id = data.get("user_id")
-    lobby = Lobby.query.get_or_404(lobby_id)
-    if lobby.finished:
-        return jsonify({"error": "contest finished"}), 400
-    team = Team.query.filter_by(lobby_id=lobby.id).first()
-    if not team:
-        return jsonify({"error": "team not found"}), 404
-    if team.locked:
-        return jsonify({"error": "team locked"}), 400
-    team.add_member(user_id)
-    db.session.commit()
-    return jsonify(team.to_dict())
-
-
 @app.route("/api/teams/<int:team_id>/lock", methods=["POST"])
 def lock_team(team_id):
     from models import Team
@@ -1049,12 +1188,10 @@ def user_reputation(user_id):
     return jsonify(user.reputation())
 
 
-if __name__ == "__main__":
-    # run without the reloader to avoid external shell tool dependencies in some terminals
-    app.run(debug=False)
-
 @app.route("/api/lobbies/<int:lobby_id>/join-requests", methods=["POST"])
 def api_create_join_request(lobby_id):
+    from models import Lobby, Team, JoinRequest
+
     user = get_current_user()
     if not user:
         return jsonify({"error": "not_logged_in"}), 401
@@ -1081,13 +1218,20 @@ def api_create_join_request(lobby_id):
     if existing:
         return jsonify({"error": "already_pending", "request": existing.to_dict()}), 400
 
-    jr = JoinRequest(lobby_id=lobby.id, team_id=team.id, requester_id=user.id, status="pending")
+    jr = JoinRequest(
+        lobby_id=lobby.id,
+        team_id=team.id,
+        requester_id=user.id,
+        status="pending",
+    )
     db.session.add(jr)
     db.session.commit()
     return jsonify(jr.to_dict()), 201
 
 @app.route("/api/lobbies/<int:lobby_id>/join-requests", methods=["GET"])
 def api_list_join_requests(lobby_id):
+    from models import Lobby, Team, JoinRequest
+
     user = get_current_user()
     if not user:
         return jsonify({"error": "not_logged_in"}), 401
@@ -1110,6 +1254,8 @@ def api_list_join_requests(lobby_id):
 
 @app.route("/api/lobbies/<int:lobby_id>/join-requests/<int:request_id>/decision", methods=["POST"])
 def api_decide_join_request(lobby_id, request_id):
+    from models import Lobby, Team, JoinRequest
+
     user = get_current_user()
     if not user:
         return jsonify({"error": "not_logged_in"}), 401
@@ -1153,3 +1299,8 @@ def api_decide_join_request(lobby_id, request_id):
     jr.status = "accepted"
     db.session.commit()
     return jsonify(jr.to_dict()), 200
+
+
+if __name__ == "__main__":
+    # run without the reloader to avoid external shell tool dependencies in some terminals
+    app.run(debug=False)

@@ -1,6 +1,6 @@
 # TeamRank Prototype
 
-This is a runnable prototype (Flask + SQLite) demonstrating the core flow: create users, open lobbies, join teams, submit proof, and provide peer ratings.
+This is a runnable prototype (Flask + SQLite) demonstrating the core flow: create users, open lobbies, **request/invite into teams**, submit proof, and provide peer ratings.
 
 There are two frontends:
 
@@ -71,7 +71,7 @@ The UI pages use server-rendered HTML, but the app also exposes JSON endpoints y
 
 - `GET /api/users` — list users
 - `POST /api/users` — create a user
-	- Body: `{ "name": "...", "email": "netid@duke.edu", "password": "...", "major": "...", "year": "...", "lobby_id"?: 1 }`
+	- Body: `{ "name": "...", "email": "netid@duke.edu", "password": "...", "major": "...", "year": "..." }`
 - `GET /api/users/<id>` — get one user (includes list of participated lobbies)
 - `GET /api/users/<id>/reputation` — aggregate reputation for the user
 
@@ -81,8 +81,6 @@ The UI pages use server-rendered HTML, but the app also exposes JSON endpoints y
 - `POST /api/lobbies` — create a lobby (also creates an initial team)
 	- Body: `{ "title": "...", "contest_link": "...", "leader_id": 1 }`
 - `GET /api/lobbies/<id>` — get lobby details (includes participants)
-- `POST /api/lobbies/<id>/join` — join the lobby’s team (disabled if contest finished or team locked)
-	- Body: `{ "user_id": 1 }`
 - `POST /api/teams/<id>/lock` — lock a team
 
 ### Join Requests (handshake API)
@@ -116,6 +114,8 @@ Main pages in the demo UI:
 - `/lobbies` — lobby feed
 - `/lobbies/new` — create lobby
 - `/lobbies/<id>` — lobby detail (leader actions, proof, ratings)
+- `/invites` — view invites you sent/received
+- `/join-requests` — view join requests you made/received
 - `/invites/respond/<token>` — invitation accept/reject page
 
 ## TODO (MVP Demo Checklist)
@@ -130,7 +130,7 @@ Goal: ship a bare-minimum demo that shows the full loop — **Profile → Lobby 
 - [x] Allow members to submit/delete proof entries (tracks submitter)
 - [x] Allow members to create/update/delete ratings; render ratings matrix in lobby detail
 - [ ] Enforce **Proof-of-Work gate** for ratings: require at least 1 proof submission before any ratings are accepted (both UI route + API route)
-- [ ] Implement the “handshake” join flow (replace instant join): request → leader review → accept/reject
+- [x] Implement the “handshake” join flow (replaces instant join): request → leader review → accept/reject
 - [x] Add invitation flow: invite by email + tokenized accept/reject (with a confirmation page)
 - [x] Add join-request API endpoints (`/api/lobbies/<id>/join-requests`)
 - [x] Enable CORS for local Next.js development (`localhost:3000`)
@@ -148,7 +148,7 @@ Goal: ship a bare-minimum demo that shows the full loop — **Profile → Lobby 
 - [x] (Optional) Add “create user” form for faster demo setup (registration page)
 - [x] Add Next.js frontend (`trs-webapp/`) covering the same flows as the Jinja demo
 - [ ] Update lobby UI to show/apply `status` once backend adds it (badges + filters)
-- [ ] Add join-request UI once handshake is implemented (pending requests list + accept/reject)
+- [x] Add join-request UI (request button + leader accept/reject + listing pages)
 - [ ] Make ratings clearly gated in the UI (show an alert if contest finished but no proof exists yet)
 
 ### Seed + Demo Script (Person C)

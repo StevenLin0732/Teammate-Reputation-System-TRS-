@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}TRS · Invites{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">Invites</h1>
+      <div class="text-muted">Invitations you received and sent.</div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Received</h2>
+          {% if received and received|length %}
+            <div class="list-group list-group-flush">
+              {% for inv in received %}
+                {% set lobby = lobby_by_id.get(inv.lobby_id) %}
+                {% set applicant = users_by_id.get(inv.applicant_id) %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold">{{ lobby.title if lobby else ('Lobby ' ~ inv.lobby_id) }}</div>
+                      <div class="text-muted small">From: {{ applicant.name if applicant else ('User ' ~ inv.applicant_id) }}</div>
+                      <div class="text-muted small">Status: {{ inv.status }}</div>
+                    </div>
+                    {% if inv.status == 'pending' %}
+                      <div class="d-flex gap-1 flex-wrap justify-content-end">
+                        <a class="btn btn-sm btn-success" href="{{ url_for('respond_invite', token=inv.token, action='accept') }}">Accept</a>
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('respond_invite', token=inv.token, action='reject') }}">Reject</a>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">No invites received.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Sent</h2>
+          {% if sent and sent|length %}
+            <div class="list-group list-group-flush">
+              {% for inv in sent %}
+                {% set lobby = lobby_by_id.get(inv.lobby_id) %}
+                {% set target = users_by_id.get(inv.target_user_id) %}
+                <div class="list-group-item px-0">
+                  <div class="fw-semibold">{{ lobby.title if lobby else ('Lobby ' ~ inv.lobby_id) }}</div>
+                  <div class="text-muted small">To: {{ target.name if target else ('User ' ~ inv.target_user_id) }}</div>
+                  <div class="text-muted small">Status: {{ inv.status }}</div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">No invites sent.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

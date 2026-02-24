@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}TRS · Join requests{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">Join requests</h1>
+      <div class="text-muted">Requests you made and (if you’re a leader) requests you received.</div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Made by you</h2>
+          {% if made and made|length %}
+            <div class="list-group list-group-flush">
+              {% for r in made %}
+                {% set lobby = lobby_by_id.get(r.lobby_id) %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold">{{ lobby.title if lobby else ('Lobby ' ~ r.lobby_id) }}</div>
+                      <div class="text-muted small">Status: {{ r.status }}</div>
+                    </div>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('lobby_detail', lobby_id=r.lobby_id) }}">Open</a>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">No join requests made.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Received (leader view)</h2>
+          {% if received and received|length %}
+            <div class="list-group list-group-flush">
+              {% for r in received %}
+                {% set lobby = lobby_by_id.get(r.lobby_id) %}
+                {% set requester = users_by_id.get(r.requester_id) %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold">{{ lobby.title if lobby else ('Lobby ' ~ r.lobby_id) }}</div>
+                      <div class="text-muted small">Requester: {{ requester.name if requester else ('User ' ~ r.requester_id) }}</div>
+                      <div class="text-muted small">Status: {{ r.status }}</div>
+                    </div>
+                    <div class="d-flex gap-1 flex-wrap justify-content-end">
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('lobby_detail', lobby_id=r.lobby_id) }}">Review</a>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted">No join requests received.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

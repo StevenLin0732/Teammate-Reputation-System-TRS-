@@ -15,9 +15,13 @@
     <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('lobbies_page') }}">Back to lobbies</a>
       {% if current_user and team and (not lobby.finished) and (not team.locked) and (not is_member) %}
-        <form method="post" action="{{ url_for('join_lobby_page', lobby_id=lobby.id) }}">
-          <button class="btn btn-sm btn-primary" type="submit">Join lobby</button>
-        </form>
+        {% if viewer_join_request and viewer_join_request.status == 'pending' %}
+          <button class="btn btn-sm btn-outline-primary" type="button" disabled>Request pending</button>
+        {% else %}
+          <form method="post" action="{{ url_for('create_join_request_page', lobby_id=lobby.id) }}">
+            <button class="btn btn-sm btn-primary" type="submit">Request to join</button>
+          </form>
+        {% endif %}
       {% endif %}
     </div>
   </div>
@@ -71,7 +75,7 @@
             <div class="text-muted">No members yet.</div>
           {% endif %}
 
-          {% if current_user and team and (not team.locked) and (not lobby.finished) %}
+          {% if current_user and is_leader and team and (not team.locked) and (not lobby.finished) %}
             <hr>
             <form class="row g-2" method="post" action="{{ url_for('invite_to_lobby', lobby_id=lobby.id) }}">
               <div class="col-8">
@@ -86,7 +90,39 @@
               <div class="mt-2 small text-muted">Pending invitations:</div>
               <ul class="list-unstyled small">
                 {% for inv in invites %}
-                  <li>{{ inv.to_dict().applicant_id }} → {{ inv.to_dict().target_user_id }} · <span class="text-muted">{{ inv.status }}</span></li>
+                  {% if inv.status == 'pending' %}
+                    <li>{{ inv.to_dict().target_user_id }} · <span class="text-muted">{{ inv.status }}</span></li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+            {% endif %}
+
+            {% if join_requests and join_requests|length %}
+              <div class="mt-3 small text-muted">Join requests:</div>
+              <ul class="list-unstyled small">
+                {% for item in join_requests %}
+                  {% set jr = item.request %}
+                  {% set requester = item.requester %}
+                  <li class="mb-2">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                      <div>
+                        <div class="fw-semibold">{{ requester.name if requester else ('User ' ~ jr.requester_id) }}</div>
+                        <div class="text-muted">{{ jr.status }}{% if jr.created_at %} · {{ jr.created_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}</div>
+                      </div>
+                      {% if jr.status == 'pending' and (not team.locked) and (not lobby.finished) %}
+                        <div class="d-flex gap-1">
+                          <form method="post" action="{{ url_for('decide_join_request_page', lobby_id=lobby.id, request_id=jr.id) }}">
+                            <input type="hidden" name="decision" value="accept">
+                            <button class="btn btn-sm btn-success" type="submit">Accept</button>
+                          </form>
+                          <form method="post" action="{{ url_for('decide_join_request_page', lobby_id=lobby.id, request_id=jr.id) }}">
+                            <input type="hidden" name="decision" value="reject">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">Reject</button>
+                          </form>
+                        </div>
+                      {% endif %}
+                    </div>
+                  </li>
                 {% endfor %}
               </ul>
             {% endif %}
