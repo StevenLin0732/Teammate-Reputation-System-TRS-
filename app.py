@@ -91,7 +91,7 @@ def _send_email(subject: str, to_email: str, body: str):
     smtp_port = app.config.get("SMTP_PORT") or 25
     smtp_user = app.config.get("SMTP_USER")
     smtp_pass = app.config.get("SMTP_PASS")
-    mail_from = app.config.get("MAIL_FROM") or "noreply@example.com"
+    mail_from = app.config.get("MAIL_FROM") or "noreply@teammate-reputation-system.com"
 
     msg = EmailMessage()
     msg["Subject"] = subject
