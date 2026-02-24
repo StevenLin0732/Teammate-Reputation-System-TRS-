@@ -33,25 +33,22 @@ export function Navbar({ currentUser }: NavbarProps) {
             <div className="flex items-center gap-4">
               <Link
                 href="/"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive('/') ? 'bg-gray-800' : 'hover:bg-gray-800'
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/') ? 'bg-gray-800' : 'hover:bg-gray-800'
+                  }`}
               >
                 Home
               </Link>
               <Link
                 href="/users"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive('/users') ? 'bg-gray-800' : 'hover:bg-gray-800'
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/users') ? 'bg-gray-800' : 'hover:bg-gray-800'
+                  }`}
               >
                 Users
               </Link>
               <Link
                 href="/lobbies"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive('/lobbies') ? 'bg-gray-800' : 'hover:bg-gray-800'
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/lobbies') ? 'bg-gray-800' : 'hover:bg-gray-800'
+                  }`}
               >
                 Lobbies
               </Link>
@@ -60,7 +57,7 @@ export function Navbar({ currentUser }: NavbarProps) {
           <div className="flex items-center gap-4">
             {currentUser ? (
               <>
-                <Link href="/me">
+                <Link href={`/users/${currentUser.id}`}>
                   <Button variant="ghost" size="sm">
                     My profile
                   </Button>
@@ -71,12 +68,12 @@ export function Navbar({ currentUser }: NavbarProps) {
               </>
             ) : (
               <>
-              <Link href="/register">
-                <Button variant="outline" size="sm">Register</Button>
-              </Link>
-              <Link href="/login">
-                <Button size="sm">Login</Button>
-              </Link>
+                <Link href="/register">
+                  <Button variant="outline" size="sm">Register</Button>
+                </Link>
+                <Link href="/login">
+                  <Button size="sm">Login</Button>
+                </Link>
               </>
             )}
           </div>
