@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
+import os
 import random
 import re
-from app import app
 from extensions import db
 from models import User, Lobby, Team, Submission, Rating
 from werkzeug.security import generate_password_hash
@@ -366,6 +366,11 @@ def seed_open_lobby(users, lobby_index, title, link, locked=False):
 
 
 def main():
+    # Prevent app auto-seeding from running while this script is in charge.
+    os.environ["TRS_DISABLE_AUTOSEED"] = "1"
+
+    from app import app
+
     with app.app_context():
         reset_db()
         users = seed_users()

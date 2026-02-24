@@ -43,11 +43,6 @@ with app.app_context():
 
     db.create_all()
 
-    if User.query.first() is None:
-        from seed_db import seed_users
-
-        seed_users()
-
 
 def _sqlite_column_exists(table_name: str, column_name: str) -> bool:
     rows = db.session.execute(text(f"PRAGMA table_info({table_name})")).all()
@@ -69,6 +64,16 @@ with app.app_context():
     _sqlite_add_column_if_missing("lobby", "finished_at", "finished_at DATETIME")
     _sqlite_add_column_if_missing("submission", "submitter_id", "submitter_id INTEGER")
     _sqlite_add_column_if_missing("user", "password_hash", "password_hash TEXT")
+
+
+with app.app_context():
+    # Auto-seed only when running the web app; avoid doing this during `seed_db.py`
+    if os.environ.get("TRS_DISABLE_AUTOSEED") != "1":
+        has_user = db.session.execute(text("SELECT 1 FROM user LIMIT 1")).first()
+        if has_user is None:
+            from seed_db import seed_users
+
+            seed_users()
 
 
 def get_current_user():
