@@ -25,6 +25,7 @@
               <h5 class="card-title mb-1">{{ lobby.title }}</h5>
               <div class="d-flex gap-1 flex-wrap justify-content-end">
                 <span class="badge text-bg-primary">{{ lobby.participant_count }} members</span>
+                <span class="badge text-bg-info">Team rep {{ lobby.team_reputation }}</span>
                 {% if lobby.finished %}
                   <span class="badge text-bg-dark">Finished</span>
                 {% endif %}

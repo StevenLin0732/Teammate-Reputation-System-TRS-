@@ -85,6 +85,63 @@ def get_current_user():
     return User.query.get(user_id)
 
 
+def _rep_overall_score_0_to_10(rep: dict | None) -> float:
+    """Scalar reputation score in [0, 10] derived from the existing rep dict.
+
+    We keep this consistent with the graph API's normalization: contribution and
+    communication are treated as 0..10 inputs, normalized to 0..1, then averaged
+    with the would_work_again ratio (0..1).
+    """
+
+    if not rep:
+        return 0.0
+
+    from models import _normalize_0_to_10
+
+    contrib = _normalize_0_to_10(rep.get("contribution_avg"))
+    comm = _normalize_0_to_10(rep.get("communication_avg"))
+
+    wwa_raw = rep.get("would_work_again_ratio")
+    try:
+        wwa = float(wwa_raw) if wwa_raw is not None else 0.0
+    except (TypeError, ValueError):
+        wwa = 0.0
+    if wwa < 0.0:
+        wwa = 0.0
+    if wwa > 1.0:
+        wwa = 1.0
+
+    score = 10.0 * ((contrib + comm + wwa) / 3.0)
+    return round(float(score), 2)
+
+
+def _aggregate_team_rep_0_to_10(member_ids: list[int], rep_score_by_id: dict[int, float]) -> float:
+    if not member_ids:
+        return 0.0
+    scores = [float(rep_score_by_id.get(uid, 0.0)) for uid in member_ids]
+    if not scores:
+        return 0.0
+    return round(sum(scores) / float(len(scores)), 2)
+
+
+def _compute_rep_scores_for_user_ids(user_ids: set[int]) -> dict[int, float]:
+    """Compute scalar rep scores for a set of user ids (best effort)."""
+
+    if not user_ids:
+        return {}
+
+    from models import User
+
+    trust_scores = User.compute_transitive_trust_scores()
+    users = User.query.filter(User.id.in_(user_ids)).all()
+    rep_score_by_id: dict[int, float] = {}
+    for u in users:
+        rep_score_by_id[u.id] = _rep_overall_score_0_to_10(
+            u.reputation(trust_scores=trust_scores)
+        )
+    return rep_score_by_id
+
+
 def _send_email(subject: str, to_email: str, body: str):
     # Use SMTP settings if configured; otherwise log to console
     smtp_host = app.config.get("SMTP_HOST")
@@ -283,8 +340,14 @@ def users_page():
     from models import User
 
     users = User.query.order_by(User.name.asc()).all()
-    rep_by_id = {u.id: u.reputation() for u in users}
+    trust_scores = User.compute_transitive_trust_scores()
+    rep_by_id = {u.id: u.reputation(trust_scores=trust_scores) for u in users}
     return render_template("users.html", users=users, rep_by_id=rep_by_id)
+
+
+@app.route("/graph")
+def graph_page():
+    return render_template("graph.html")
 
 
 @app.route("/users/<int:user_id>", methods=["GET", "POST"])
@@ -388,7 +451,8 @@ def user_profile(user_id):
             }
         )
 
-    overall_rep = user.reputation()
+    trust_scores = User.compute_transitive_trust_scores()
+    overall_rep = user.reputation(trust_scores=trust_scores)
     return render_template(
         "profile.html",
         user=user,
@@ -413,9 +477,26 @@ def lobbies_page():
         ).all()
         pending_by_lobby_id = {r.lobby_id: r for r in pending}
 
+    # Pre-compute rep scores for users participating in these lobbies (+ viewer).
+    member_ids_by_lobby_id: dict[int, list[int]] = {}
+    all_user_ids: set[int] = set()
+
     for q in qs:
         team = Team.query.filter_by(lobby_id=q.id).first()
-        participant_count = len(team.members) if team else 0
+        member_ids = [tm.user_id for tm in team.members] if team else []
+        member_ids_by_lobby_id[q.id] = member_ids
+        all_user_ids.update(member_ids)
+
+    if viewer:
+        all_user_ids.add(viewer.id)
+
+    rep_score_by_id = _compute_rep_scores_for_user_ids(all_user_ids)
+    viewer_rep = float(rep_score_by_id.get(viewer.id, 0.0)) if viewer else None
+
+    for idx, q in enumerate(qs):
+        team = Team.query.filter_by(lobby_id=q.id).first()
+        member_ids = member_ids_by_lobby_id.get(q.id, [])
+        participant_count = len(member_ids)
         d = q.to_dict()
         d["participant_count"] = participant_count
         d["team_locked"] = bool(team.locked) if team else False
@@ -430,7 +511,37 @@ def lobbies_page():
 
         req = pending_by_lobby_id.get(q.id)
         d["join_request_status"] = req.status if req else None
+
+        team_rep = _aggregate_team_rep_0_to_10(member_ids, rep_score_by_id)
+        d["team_reputation"] = team_rep
+        if viewer_rep is not None:
+            d["rep_distance"] = round(abs(team_rep - viewer_rep), 2)
+        else:
+            d["rep_distance"] = None
+
+        # preserve original ordering (created_at desc) as a stable tiebreaker
+        d["_order"] = idx
         lobbies.append(d)
+
+    if viewer:
+        def _is_joinable(l: dict) -> bool:
+            return (
+                l.get("role") is None
+                and (not bool(l.get("finished")))
+                and (not bool(l.get("team_locked")))
+            )
+
+        def _sort_key(l: dict):
+            joinable_bucket = 0 if _is_joinable(l) else 1
+            dist = l.get("rep_distance")
+            dist_val = float(dist) if dist is not None else 1e9
+            return (joinable_bucket, dist_val, l.get("_order", 0))
+
+        lobbies.sort(key=_sort_key)
+
+    for l in lobbies:
+        l.pop("_order", None)
+
     return render_template("lobbies.html", lobbies=lobbies)
 
 
@@ -495,6 +606,36 @@ def lobby_detail(lobby_id):
     teammates = []
     if viewer:
         teammates = [m for m in members if m.id != viewer.id]
+
+    invite_recommendations = []
+    if viewer and is_leader and team and (not team.locked) and (not lobby.finished):
+        pending_invites = Invitation.query.filter_by(team_id=team.id, status="pending").all()
+        excluded_ids = {tm.user_id for tm in team.members} | {viewer.id}
+        excluded_ids |= {inv.target_user_id for inv in pending_invites if inv.target_user_id is not None}
+
+        candidates = (
+            User.query.filter(~User.id.in_(excluded_ids)).order_by(User.name.asc()).all()
+            if excluded_ids
+            else User.query.order_by(User.name.asc()).all()
+        )
+
+        rep_user_ids: set[int] = {viewer.id} | {u.id for u in candidates}
+        rep_score_by_id = _compute_rep_scores_for_user_ids(rep_user_ids)
+        viewer_rep = float(rep_score_by_id.get(viewer.id, 0.0))
+
+        scored = []
+        for u in candidates:
+            score = float(rep_score_by_id.get(u.id, 0.0))
+            scored.append(
+                {
+                    "user": u,
+                    "reputation": score,
+                    "distance": round(abs(score - viewer_rep), 2),
+                }
+            )
+
+        scored.sort(key=lambda x: (x["distance"], x["user"].name.lower()))
+        invite_recommendations = scored[:5]
 
     ratings = []
     rating_by_pair = {}
@@ -581,6 +722,7 @@ def lobby_detail(lobby_id):
         viewer_ratings_by_target=viewer_ratings_by_target,
         avg_by_target=avg_by_target,
         invites=Invitation.query.filter_by(team_id=team.id).all() if team else [],
+        invite_recommendations=invite_recommendations,
     )
 
 
@@ -1133,12 +1275,16 @@ def get_lobby(lobby_id):
                 participants.append(u.to_dict())
     out = lobby.to_dict()
     out["participants"] = participants
+    out["participant_count"] = len(participants)
+    # This app's UI assumes a single team per lobby; expose a simple lock flag.
+    primary_team = Team.query.filter_by(lobby_id=lobby.id).first()
+    out["team_locked"] = bool(primary_team.locked) if primary_team else False
     return jsonify(out)
 
 
 @app.route("/api/lobbies", methods=["GET", "POST"])
 def lobbies():
-    from models import Lobby, Team
+    from models import Lobby, Team, JoinRequest
 
     if request.method == "POST":
         data = request.json or {}
@@ -1153,18 +1299,136 @@ def lobbies():
         db.session.add(team)
         db.session.commit()
         return jsonify(lobby.to_dict()), 201
-    qs = Lobby.query.all()
-    out = []
+    viewer = get_current_user()
+
+    # Keep newest-first as the baseline order.
+    qs = Lobby.query.order_by(Lobby.created_at.desc()).all()
+
+    member_ids_by_lobby_id: dict[int, list[int]] = {}
+    all_user_ids: set[int] = set()
+
     for q in qs:
-        # compute participant count across teams
-        teams = Team.query.filter_by(lobby_id=q.id).all()
-        count = 0
-        for t in teams:
-            count += len(t.members)
+        team = Team.query.filter_by(lobby_id=q.id).first()
+        member_ids = [tm.user_id for tm in team.members] if team else []
+        member_ids_by_lobby_id[q.id] = member_ids
+        all_user_ids.update(member_ids)
+
+    if viewer:
+        all_user_ids.add(viewer.id)
+
+    rep_score_by_id = _compute_rep_scores_for_user_ids(all_user_ids)
+    viewer_rep = float(rep_score_by_id.get(viewer.id, 0.0)) if viewer else None
+
+    pending_by_lobby_id = {}
+    if viewer:
+        pending = JoinRequest.query.filter_by(requester_id=viewer.id, status="pending").all()
+        pending_by_lobby_id = {r.lobby_id: r for r in pending}
+
+    out = []
+    for idx, q in enumerate(qs):
+        team = Team.query.filter_by(lobby_id=q.id).first()
+        member_ids = member_ids_by_lobby_id.get(q.id, [])
+
         d = q.to_dict()
-        d["participant_count"] = count
+        d["participant_count"] = len(member_ids)
+        d["team_locked"] = bool(team.locked) if team else False
+
+        role = None
+        if viewer:
+            if q.leader_id and viewer.id == q.leader_id:
+                role = "Leader"
+            elif team and any(tm.user_id == viewer.id for tm in team.members):
+                role = "Member"
+        d["role"] = role
+
+        req = pending_by_lobby_id.get(q.id)
+        d["join_request_status"] = req.status if req else None
+
+        team_rep = _aggregate_team_rep_0_to_10(member_ids, rep_score_by_id)
+        d["team_reputation"] = team_rep
+        if viewer_rep is not None:
+            d["rep_distance"] = round(abs(team_rep - viewer_rep), 2)
+        else:
+            d["rep_distance"] = None
+
+        d["_order"] = idx
         out.append(d)
+
+    if viewer:
+        def _is_joinable(l: dict) -> bool:
+            return (
+                l.get("role") is None
+                and (not bool(l.get("finished")))
+                and (not bool(l.get("team_locked")))
+            )
+
+        def _sort_key(l: dict):
+            joinable_bucket = 0 if _is_joinable(l) else 1
+            dist = l.get("rep_distance")
+            dist_val = float(dist) if dist is not None else 1e9
+            return (joinable_bucket, dist_val, l.get("_order", 0))
+
+        out.sort(key=_sort_key)
+
+    for l in out:
+        l.pop("_order", None)
+
     return jsonify(out)
+
+
+@app.route("/api/lobbies/<int:lobby_id>/invite-suggestions", methods=["GET"])
+def api_invite_suggestions(lobby_id: int):
+    """Return a few users whose reputation is closest to the leader's.
+
+    Leader-only, excludes current team members and pending invites.
+    """
+
+    from models import Lobby, Team, User, Invitation
+
+    viewer = get_current_user()
+    if not viewer:
+        return jsonify({"error": "not_logged_in"}), 401
+
+    lobby = Lobby.query.get_or_404(lobby_id)
+    if lobby.leader_id != viewer.id:
+        return jsonify({"error": "leader_only"}), 403
+
+    team = Team.query.filter_by(lobby_id=lobby.id).first()
+    if not team:
+        return jsonify({"error": "team_not_found"}), 404
+
+    if lobby.finished or team.locked:
+        return jsonify([]), 200
+
+    pending_invites = Invitation.query.filter_by(team_id=team.id, status="pending").all()
+    excluded_ids = {tm.user_id for tm in team.members} | {viewer.id}
+    excluded_ids |= {inv.target_user_id for inv in pending_invites if inv.target_user_id is not None}
+
+    candidates = (
+        User.query.filter(~User.id.in_(excluded_ids)).order_by(User.name.asc()).all()
+        if excluded_ids
+        else User.query.order_by(User.name.asc()).all()
+    )
+
+    rep_user_ids: set[int] = {viewer.id} | {u.id for u in candidates}
+    rep_score_by_id = _compute_rep_scores_for_user_ids(rep_user_ids)
+    viewer_rep = float(rep_score_by_id.get(viewer.id, 0.0))
+
+    scored = []
+    for u in candidates:
+        score = float(rep_score_by_id.get(u.id, 0.0))
+        scored.append(
+            {
+                "id": u.id,
+                "name": u.name,
+                "email": u.email,
+                "reputation": score,
+                "distance": round(abs(score - viewer_rep), 2),
+            }
+        )
+
+    scored.sort(key=lambda x: (x["distance"], (x["name"] or "").lower()))
+    return jsonify(scored[:5]), 200
 @app.route("/api/teams/<int:team_id>/lock", methods=["POST"])
 def lock_team(team_id):
     from models import Team
@@ -1240,7 +1504,116 @@ def user_reputation(user_id):
     from models import User
 
     user = User.query.get_or_404(user_id)
-    return jsonify(user.reputation())
+    trust_scores = User.compute_transitive_trust_scores()
+    return jsonify(user.reputation(trust_scores=trust_scores))
+
+
+@app.route("/api/graph")
+def api_graph():
+    """Return a deduped rating graph for demo visualization.
+
+    Nodes are users with a global trust score.
+    Edges are rater -> target with an averaged local weight in [0, 1].
+    """
+
+    from models import User, Rating, _normalize_0_to_10
+
+    trust_scores = User.compute_transitive_trust_scores()
+    users = User.query.order_by(User.id.asc()).all()
+
+    rep_by_id = {u.id: u.reputation(trust_scores=trust_scores) for u in users}
+
+    # Collapse multiple ratings between the same (rater, target)
+    pair_local_sum: dict[tuple[int, int], float] = {}
+    pair_local_count: dict[tuple[int, int], int] = {}
+    pair_contrib_sum: dict[tuple[int, int], float] = {}
+    pair_contrib_n: dict[tuple[int, int], int] = {}
+    pair_comm_sum: dict[tuple[int, int], float] = {}
+    pair_comm_n: dict[tuple[int, int], int] = {}
+    pair_wwa_sum: dict[tuple[int, int], float] = {}
+    pair_wwa_n: dict[tuple[int, int], int] = {}
+
+    rows = db.session.query(
+        Rating.rater_id,
+        Rating.target_user_id,
+        Rating.contribution,
+        Rating.communication,
+        Rating.would_work_again,
+    ).all()
+
+    for rater_id, target_user_id, contribution, communication, would_work_again in rows:
+        if rater_id is None or target_user_id is None:
+            continue
+        if rater_id == target_user_id:
+            continue
+
+        contrib_n = _normalize_0_to_10(contribution)
+        comm_n = _normalize_0_to_10(communication)
+        wwa_n = 1.0 if bool(would_work_again) else 0.0
+
+        local = (contrib_n + comm_n + wwa_n) / 3.0
+        if local <= 0.0:
+            continue
+
+        key = (int(rater_id), int(target_user_id))
+        pair_local_sum[key] = pair_local_sum.get(key, 0.0) + float(local)
+        pair_local_count[key] = pair_local_count.get(key, 0) + 1
+
+        if contribution is not None:
+            pair_contrib_sum[key] = pair_contrib_sum.get(key, 0.0) + float(contribution)
+            pair_contrib_n[key] = pair_contrib_n.get(key, 0) + 1
+        if communication is not None:
+            pair_comm_sum[key] = pair_comm_sum.get(key, 0.0) + float(communication)
+            pair_comm_n[key] = pair_comm_n.get(key, 0) + 1
+
+        pair_wwa_sum[key] = pair_wwa_sum.get(key, 0.0) + (1.0 if bool(would_work_again) else 0.0)
+        pair_wwa_n[key] = pair_wwa_n.get(key, 0) + 1
+
+    nodes = [
+        {
+            "id": u.id,
+            "name": u.name,
+            "trust": float(trust_scores.get(u.id, 0.0)),
+            "reputation": rep_by_id.get(u.id),
+            "reputation_overall": (
+                (
+                    (_normalize_0_to_10((rep_by_id.get(u.id) or {}).get("contribution_avg"))
+                    + _normalize_0_to_10((rep_by_id.get(u.id) or {}).get("communication_avg"))
+                    + float((rep_by_id.get(u.id) or {}).get("would_work_again_ratio") or 0.0))
+                    / 3.0
+                )
+                if rep_by_id.get(u.id) is not None
+                else 0.0
+            ),
+        }
+        for u in users
+    ]
+
+    edges = []
+    for (rater_id, target_user_id), s in pair_local_sum.items():
+        n = pair_local_count[(rater_id, target_user_id)]
+        contrib_avg = None
+        comm_avg = None
+        if pair_contrib_n.get((rater_id, target_user_id), 0):
+            contrib_avg = pair_contrib_sum[(rater_id, target_user_id)] / float(pair_contrib_n[(rater_id, target_user_id)])
+        if pair_comm_n.get((rater_id, target_user_id), 0):
+            comm_avg = pair_comm_sum[(rater_id, target_user_id)] / float(pair_comm_n[(rater_id, target_user_id)])
+        wwa_ratio = (
+            pair_wwa_sum.get((rater_id, target_user_id), 0.0) / float(pair_wwa_n.get((rater_id, target_user_id), 1))
+        )
+        edges.append(
+            {
+                "source": rater_id,
+                "target": target_user_id,
+                "weight": float(s / float(n)),
+                "count": int(n),
+                "contribution_avg": contrib_avg,
+                "communication_avg": comm_avg,
+                "would_work_again_ratio": float(wwa_ratio),
+            }
+        )
+
+    return jsonify({"nodes": nodes, "edges": edges})
 
 
 @app.route("/api/lobbies/<int:lobby_id>/join-requests", methods=["POST"])
