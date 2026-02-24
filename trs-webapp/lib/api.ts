@@ -77,6 +77,13 @@ export async function getCurrentUser(): Promise<User | null> {
       credentials: 'include',
       redirect: 'manual',
     });
+    // If server returns JSON user object (common), return it
+    const contentType = response.headers.get('content-type') || '';
+    if (response.ok && contentType.includes('application/json')) {
+      return response.json();
+    }
+
+    // Some servers redirect /me to /users/<id> via 302; follow that
     if (response.status === 302) {
       const location = response.headers.get('location');
       if (location && location.includes('/users/')) {
@@ -86,6 +93,7 @@ export async function getCurrentUser(): Promise<User | null> {
         }
       }
     }
+
     return null;
   } catch {
     return null;

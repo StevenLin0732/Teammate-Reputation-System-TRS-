@@ -201,9 +201,9 @@ def register():
             email=email,
             major=major,
             year=year,
-            bio=bio,
-            contact=contact,
-            phone=phone,
+            bio=bio or "",
+            contact=contact or "",
+            phone=phone or "0",
             password_hash=generate_password_hash(password),
         )
         db.session.add(user)

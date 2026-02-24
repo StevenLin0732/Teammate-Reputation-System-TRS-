@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { register } from '@/lib/api';
+import { register, getCurrentUser } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -59,6 +59,19 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let mounted = true;
+    getCurrentUser().then((user) => {
+      if (!mounted) return;
+      if (user) {
+        router.push('/me');
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   return (
     <div className="flex justify-center">

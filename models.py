@@ -14,7 +14,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def __init__(self, name, major, year, bio, contact, phone, email):
+    def __init__(self, name, major, year, email, bio="", contact="", phone="0", password_hash=""):
         self.name = name
         self.major = major 
         self.year = year
@@ -22,8 +22,7 @@ class User(db.Model):
         self.contact = contact
         self.phone = phone
         self.email = email
-
-
+        self.password_hash= password_hash
 
     def to_dict(self):
         return {

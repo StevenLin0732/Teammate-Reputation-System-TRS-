@@ -4,24 +4,39 @@ import { useEffect, useState, Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Navbar } from './navbar';
 import { AlertContainer, Alert } from './alert';
+import { Toaster } from './ui/sonner';
 import { getCurrentUser } from '@/lib/api';
 import { User } from '@/lib/types';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [authChecked, setAuthChecked] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    getCurrentUser().then(setCurrentUser);
+    let mounted = true;
+    getCurrentUser()
+      .then((user) => {
+        if (!mounted) return;
+        setCurrentUser(user);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setAuthChecked(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, [pathname]);
 
   useEffect(() => {
     const message = searchParams.get('message');
     const category = searchParams.get('category') as Alert['category'] | null;
-    
+
     if (message && category) {
       addAlert({ category, message });
       const newParams = new URLSearchParams(searchParams);
@@ -41,8 +56,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar currentUser={currentUser} />
+    <div>
+      <Toaster />
+      {authChecked ? (
+        <Navbar currentUser={currentUser} />
+      ) : (
+        <div className="h-16" />
+      )}
       <main className="container mx-auto px-4 py-8">
         <AlertContainer alerts={alerts} onDismiss={dismissAlert} />
         {children}
@@ -54,7 +74,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50">
+      <div >
         <div className="container mx-auto px-4 py-8">
           {children}
         </div>
