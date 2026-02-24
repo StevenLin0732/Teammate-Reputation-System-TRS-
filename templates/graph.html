@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+
+{% block title %}TRS • Rating Graph{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h3 mb-1">Rating graph</h1>
+    <div class="text-muted">Directed edges are <span class="fw-semibold">rater → ratee</span>. Edge thickness/color = local weight (0–1). Node color/size = overall reputation (tooltip shows trust too).</div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-5">
+        <label class="form-label" for="focusUser">Focus user</label>
+        <input id="focusUser" class="form-control" list="userList" placeholder="Type a name or ID (e.g., 2 or Bob)" autocomplete="off">
+        <datalist id="userList"></datalist>
+        <div class="form-text">Click a node in the graph to focus it too.</div>
+      </div>
+      <div class="col-12 col-lg-4">
+        <label class="form-label" for="threshold">Edge weight threshold: <span id="thresholdValue" class="fw-semibold">0.20</span></label>
+        <input id="threshold" type="range" class="form-range" min="0" max="1" step="0.01" value="0.20">
+        <div class="form-text">Higher threshold shows fewer, stronger edges.</div>
+      </div>
+      <div class="col-12 col-lg-3 d-grid">
+        <button id="reset" class="btn btn-outline-secondary" type="button">Reset view</button>
+      </div>
+    </div>
+
+    <hr class="my-3" />
+
+    <div id="status" class="small text-muted mb-2">Loading graph…</div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 small text-muted mb-2">
+      <div class="me-2">Node reputation:</div>
+      <span>low</span>
+      <div class="rounded" style="width: 180px; height: 10px; background: linear-gradient(90deg, var(--bs-danger), var(--bs-warning), var(--bs-success)); border: 1px solid rgba(33,37,41,0.15);"></div>
+      <span>high</span>
+      <div class="ms-auto">Edge thickness/color/opacity = vote strength (local weight)</div>
+    </div>
+
+    <div class="border rounded bg-white" style="height: 70vh; min-height: 420px;">
+      <svg id="graphSvg" width="100%" height="100%" role="img" aria-label="Rating graph"></svg>
+    </div>
+
+    <hr class="my-3" />
+
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="fw-semibold">Explain: who shapes the focused user’s reputation</div>
+            <div id="explainSummary" class="small text-muted">Pick a user (click a node or use the focus box).</div>
+          </div>
+        </div>
+        <div class="table-responsive mt-2">
+          <table class="table table-sm table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Rater</th>
+                <th class="text-end">Trust weight</th>
+                <th class="text-end">Norm. weight</th>
+                <th class="text-end">Contrib</th>
+                <th class="text-end">Comm</th>
+                <th class="text-end">WWA</th>
+                <th class="text-end">Edge weight</th>
+                <th class="text-end"># ratings</th>
+              </tr>
+            </thead>
+            <tbody id="explainBody">
+              <tr><td colspan="8" class="text-muted">No focused user.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script>
+(function () {
+  const statusEl = document.getElementById('status');
+  const svg = d3.select('#graphSvg');
+
+  const thresholdEl = document.getElementById('threshold');
+  const thresholdValueEl = document.getElementById('thresholdValue');
+  const focusInputEl = document.getElementById('focusUser');
+  const datalistEl = document.getElementById('userList');
+  const resetEl = document.getElementById('reset');
+
+  let rawNodes = [];
+  let rawEdges = [];
+  let nodeById = new Map();
+
+  let currentFocusId = null;
+  let currentThreshold = parseFloat(thresholdEl.value || '0.2');
+
+  const container = svg.append('g');
+  const defs = svg.append('defs');
+
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 4])
+    .on('zoom', (event) => container.attr('transform', event.transform));
+
+  svg.call(zoom);
+
+  function setStatus(text) {
+    statusEl.textContent = text;
+  }
+
+  function clamp01(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.min(1, n));
+  }
+
+  function nodeColorForReputation(overall) {
+    // Low = red, high = green
+    return d3.interpolateRdYlGn(clamp01(overall));
+  }
+
+  function edgeColorForWeight(weight) {
+    // Low = very light, high = darker blue
+    const v = clamp01(weight);
+    return d3.interpolateBlues(0.25 + 0.75 * v);
+  }
+
+  const ARROW_BINS = 10;
+
+  function weightBin(weight) {
+    const v = clamp01(weight);
+    return Math.min(ARROW_BINS - 1, Math.floor(v * ARROW_BINS));
+  }
+
+  function ensureArrowMarkers() {
+    // Create per-bin colored arrow markers once.
+    if (!defs.select('#arrow-0').empty()) return;
+
+    for (let i = 0; i < ARROW_BINS; i++) {
+      const mid = (i + 0.5) / ARROW_BINS;
+      defs.append('marker')
+        .attr('id', `arrow-${i}`)
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 18)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', edgeColorForWeight(mid))
+        .attr('fill-opacity', 0.95);
+    }
+  }
+
+  function fmtMaybe(x, digits=2) {
+    if (x === null || x === undefined) return '—';
+    const n = Number(x);
+    if (Number.isNaN(n)) return '—';
+    return n.toFixed(digits);
+  }
+
+  function safeParseFocus(text) {
+    const s = (text || '').trim();
+    if (!s) return null;
+    const m = s.match(/^\s*(\d+)\s*(?:-|:)?\s*(.*)$/);
+    if (m) {
+      const id = parseInt(m[1], 10);
+      if (!isNaN(id) && nodeById.has(id)) return id;
+    }
+    // fallback: case-insensitive name contains
+    const lower = s.toLowerCase();
+    for (const n of rawNodes) {
+      if ((n.name || '').toLowerCase().includes(lower)) return n.id;
+    }
+    return null;
+  }
+
+  function computeNeighborhood(edgeList, focusId) {
+    const neigh = new Set();
+    if (focusId == null) return neigh;
+    neigh.add(focusId);
+    for (const e of edgeList) {
+      if (e.source.id === focusId || e.source === focusId) {
+        neigh.add(e.target.id ?? e.target);
+      }
+      if (e.target.id === focusId || e.target === focusId) {
+        neigh.add(e.source.id ?? e.source);
+      }
+    }
+    return neigh;
+  }
+
+  function assignComponents(nodes, edges) {
+    // Treat the directed graph as undirected for component detection.
+    const neighbors = new Map();
+    for (const n of nodes) neighbors.set(n.id, []);
+    for (const e of edges) {
+      if (!neighbors.has(e.source) || !neighbors.has(e.target)) continue;
+      neighbors.get(e.source).push(e.target);
+      neighbors.get(e.target).push(e.source);
+    }
+
+    const compById = new Map();
+    let comp = 0;
+    for (const n of nodes) {
+      if (compById.has(n.id)) continue;
+      const stack = [n.id];
+      compById.set(n.id, comp);
+      while (stack.length) {
+        const v = stack.pop();
+        const adj = neighbors.get(v) || [];
+        for (const u of adj) {
+          if (!compById.has(u)) {
+            compById.set(u, comp);
+            stack.push(u);
+          }
+        }
+      }
+      comp += 1;
+    }
+
+    for (const n of nodes) {
+      n.component = compById.get(n.id) ?? 0;
+    }
+
+    return comp;
+  }
+
+  function render() {
+    ensureArrowMarkers();
+
+    const threshold = currentThreshold;
+    thresholdValueEl.textContent = threshold.toFixed(2);
+
+    const edges = rawEdges.filter(e => e.weight >= threshold);
+
+    const usedNodeIds = new Set();
+    for (const e of edges) {
+      usedNodeIds.add(e.source);
+      usedNodeIds.add(e.target);
+    }
+
+    const nodes = rawNodes.filter(n => usedNodeIds.has(n.id));
+
+    const width = svg.node().clientWidth;
+    const height = svg.node().clientHeight;
+
+    container.selectAll('*').remove();
+
+    if (nodes.length === 0) {
+      setStatus('No edges at this threshold. Lower the threshold to see more.');
+      return;
+    }
+
+    const nodeRadius = d3.scaleSqrt().domain([0, 1]).range([8, 28]);
+    const edgeWidth = d3.scaleLinear().domain([0, 1]).range([1, 7]);
+    const edgeOpacity = d3.scaleLinear().domain([0, 1]).range([0.15, 0.95]);
+
+    const simNodes = nodes.map(n => ({...n}));
+    const simEdges = edges
+      .filter(e => usedNodeIds.has(e.source) && usedNodeIds.has(e.target))
+      .map(e => ({...e}));
+
+    // Move disjoint components away from each other by anchoring each connected
+    // component to a different center point.
+    const componentCount = assignComponents(simNodes, simEdges);
+    const anchorR = Math.max(0, Math.min(width, height) / 2);
+    const anchors = new Array(Math.max(1, componentCount)).fill(null).map((_, k) => {
+      if (componentCount <= 1) return { x: width / 2, y: height / 2 };
+      const a = (2 * Math.PI * k) / componentCount;
+      return {
+        x: (width / 2) + anchorR * Math.cos(a),
+        y: (height / 2) + anchorR * Math.sin(a),
+      };
+    });
+
+    const simulation = d3.forceSimulation(simNodes)
+      // Spread connected nodes out
+      .force('link', d3.forceLink(simEdges).id(d => d.id).distance(220).strength(0.45))
+      // General repulsion within components
+      .force('charge', d3.forceManyBody().strength(-260).distanceMax(220))
+      // Anchor each connected component to its own region
+      .force('componentX', d3.forceX(d => anchors[d.component]?.x ?? (width / 2)).strength(0.13))
+      .force('componentY', d3.forceY(d => anchors[d.component]?.y ?? (height / 2)).strength(0.13))
+      // Prevent overlap
+      .force('collide', d3.forceCollide().radius(d => nodeRadius(clamp01(d.reputation_overall)) + 18).iterations(2));
+
+    const link = container.append('g')
+      .attr('stroke-linecap', 'round')
+      .selectAll('line')
+      .data(simEdges)
+      .join('line')
+      .attr('stroke-width', d => edgeWidth(d.weight))
+      .attr('stroke-opacity', d => edgeOpacity(d.weight))
+      .attr('stroke', d => edgeColorForWeight(d.weight))
+      .attr('marker-end', d => `url(#arrow-${weightBin(d.weight)})`);
+
+    link.append('title')
+      .text(d => {
+        const s = d.source.id ?? d.source;
+        const t = d.target.id ?? d.target;
+        return `edge ${s} → ${t}\nweight=${(d.weight || 0).toFixed(3)}\nratings=${d.count || 0}`;
+      });
+
+    const node = container.append('g')
+      .selectAll('g')
+      .data(simNodes)
+      .join('g')
+      .style('cursor', 'pointer')
+      .call(d3.drag()
+        .on('start', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x; d.fy = d.y;
+        })
+        .on('drag', (event, d) => {
+          d.fx = event.x; d.fy = event.y;
+        })
+        .on('end', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null; d.fy = null;
+        })
+      );
+
+    node.append('circle')
+      .attr('r', d => nodeRadius(clamp01(d.reputation_overall)))
+      .attr('fill', d => nodeColorForReputation(d.reputation_overall))
+      .attr('fill-opacity', 0.92)
+      .attr('stroke', 'rgba(33,37,41,0.35)')
+      .attr('stroke-width', 1);
+
+    node.append('title')
+      .text(d => {
+        const rep = d.reputation || {};
+        const overall = (d.reputation_overall || 0);
+        return `${d.id}: ${d.name}`
+          + `\ntrust=${(d.trust || 0).toFixed(4)}`
+          + `\noverall_rep=${overall.toFixed(3)}`
+          + `\ncontrib=${rep.contribution_avg ?? '—'} comm=${rep.communication_avg ?? '—'} wwa=${(rep.would_work_again_ratio ?? 0).toFixed?.(3) ?? rep.would_work_again_ratio}`;
+      });
+
+    // Two-layer label: a white-stroked halo under a bold text layer.
+    node.append('text')
+      .text(d => d.name)
+      .attr('font-size', 12)
+      .attr('font-weight', 700)
+      .attr('dx', d => nodeRadius(clamp01(d.reputation_overall)) + 6)
+      .attr('dy', 4)
+      .attr('stroke', 'rgba(255,255,255,0.95)')
+      .attr('stroke-width', 4)
+      .attr('stroke-linejoin', 'round')
+      .attr('paint-order', 'stroke')
+      .attr('fill', 'rgba(33,37,41,0.0)');
+
+    node.append('text')
+      .text(d => d.name)
+      .attr('font-size', 12)
+      .attr('font-weight', 700)
+      .attr('dx', d => nodeRadius(clamp01(d.reputation_overall)) + 6)
+      .attr('dy', 4)
+      .attr('fill', 'rgba(33,37,41,0.90)');
+
+    function applyHighlight(focusId) {
+      currentFocusId = focusId;
+
+      if (focusId == null) {
+        node.selectAll('circle')
+          .attr('fill', d => nodeColorForReputation(d.reputation_overall))
+          .attr('fill-opacity', 0.92);
+        link
+          .attr('stroke-opacity', 1)
+          .attr('stroke', d => edgeColorForWeight(d.weight));
+        return;
+      }
+
+      const neighborhood = computeNeighborhood(simEdges, focusId);
+
+      node.selectAll('circle')
+        .attr('fill', d => d.id === focusId ? 'var(--bs-warning)' : (neighborhood.has(d.id) ? nodeColorForReputation(d.reputation_overall) : 'var(--bs-secondary)'))
+        .attr('fill-opacity', d => neighborhood.has(d.id) ? 0.95 : 0.12);
+
+      link
+        .attr('stroke-opacity', d => {
+          const s = d.source.id ?? d.source;
+          const t = d.target.id ?? d.target;
+          return (s === focusId || t === focusId) ? edgeOpacity(d.weight) : 0.05;
+        })
+        .attr('stroke', d => {
+          return edgeColorForWeight(d.weight);
+        });
+    }
+
+    function updateExplain(focusId) {
+      const body = document.getElementById('explainBody');
+      const summary = document.getElementById('explainSummary');
+      body.innerHTML = '';
+
+      if (focusId == null) {
+        summary.textContent = 'Pick a user (click a node or use the focus box).';
+        body.innerHTML = '<tr><td colspan="8" class="text-muted">No focused user.</td></tr>';
+        return;
+      }
+
+      const focusNode = nodeById.get(focusId);
+      if (!focusNode) {
+        summary.textContent = 'Focused user not found in graph.';
+        body.innerHTML = '<tr><td colspan="8" class="text-muted">No data.</td></tr>';
+        return;
+      }
+
+      const incoming = edges
+        .filter(e => e.target === focusId)
+        .map(e => {
+          const rater = nodeById.get(e.source);
+          return {
+            ...e,
+            rater,
+            trust: rater ? (rater.trust || 0) : 0,
+          };
+        })
+        .filter(x => x.rater);
+
+      incoming.sort((a, b) => (b.trust - a.trust) || (b.weight - a.weight));
+
+      const sumTrust = incoming.reduce((acc, x) => acc + (x.trust || 0), 0);
+
+      // Compute weighted vs unweighted aggregates from the incoming table (demo-friendly).
+      let wContrib = 0, wComm = 0, wWWA = 0, wDenContrib = 0, wDenComm = 0, wDenWWA = 0;
+      let uContrib = 0, uComm = 0, uWWA = 0, uDenContrib = 0, uDenComm = 0, uDenWWA = 0;
+
+      for (const x of incoming) {
+        const w = x.trust || 0;
+        if (x.contribution_avg !== null && x.contribution_avg !== undefined) {
+          wContrib += w * Number(x.contribution_avg);
+          wDenContrib += w;
+          uContrib += Number(x.contribution_avg);
+          uDenContrib += 1;
+        }
+        if (x.communication_avg !== null && x.communication_avg !== undefined) {
+          wComm += w * Number(x.communication_avg);
+          wDenComm += w;
+          uComm += Number(x.communication_avg);
+          uDenComm += 1;
+        }
+        if (x.would_work_again_ratio !== null && x.would_work_again_ratio !== undefined) {
+          wWWA += w * Number(x.would_work_again_ratio);
+          wDenWWA += w;
+          uWWA += Number(x.would_work_again_ratio);
+          uDenWWA += 1;
+        }
+      }
+
+      const weightedContrib = wDenContrib ? (wContrib / wDenContrib) : null;
+      const weightedComm = wDenComm ? (wComm / wDenComm) : null;
+      const weightedWWA = wDenWWA ? (wWWA / wDenWWA) : null;
+      const unweightedContrib = uDenContrib ? (uContrib / uDenContrib) : null;
+      const unweightedComm = uDenComm ? (uComm / uDenComm) : null;
+      const unweightedWWA = uDenWWA ? (uWWA / uDenWWA) : null;
+
+      summary.textContent = `${focusNode.id} - ${focusNode.name} • shown incoming raters: ${incoming.length} • `
+        + `weighted: contrib ${fmtMaybe(weightedContrib, 2)}, comm ${fmtMaybe(weightedComm, 2)}, wwa ${fmtMaybe(weightedWWA, 3)} • `
+        + `unweighted: contrib ${fmtMaybe(unweightedContrib, 2)}, comm ${fmtMaybe(unweightedComm, 2)}, wwa ${fmtMaybe(unweightedWWA, 3)}`;
+
+      if (incoming.length === 0) {
+        body.innerHTML = '<tr><td colspan="8" class="text-muted">No incoming edges at this threshold.</td></tr>';
+        return;
+      }
+
+      for (const x of incoming) {
+        const norm = sumTrust > 0 ? (x.trust / sumTrust) : 0;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${x.rater.id} - ${x.rater.name}</td>
+          <td class="text-end">${fmtMaybe(x.trust, 6)}</td>
+          <td class="text-end">${fmtMaybe(norm, 4)}</td>
+          <td class="text-end">${x.contribution_avg == null ? '—' : fmtMaybe(x.contribution_avg, 2)}</td>
+          <td class="text-end">${x.communication_avg == null ? '—' : fmtMaybe(x.communication_avg, 2)}</td>
+          <td class="text-end">${fmtMaybe(x.would_work_again_ratio, 3)}</td>
+          <td class="text-end">${fmtMaybe(x.weight, 3)}</td>
+          <td class="text-end">${x.count || 0}</td>
+        `;
+        body.appendChild(tr);
+      }
+    }
+
+    function centerOnNodeId(focusId) {
+      if (focusId == null) return;
+      const d = simNodes.find(n => n.id === focusId);
+      if (!d) return;
+
+      const k = 1.3;
+      const tx = (width / 2) - (d.x * k);
+      const ty = (height / 2) - (d.y * k);
+
+      svg.transition().duration(450).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
+    }
+
+    node.on('click', (event, d) => {
+      focusInputEl.value = `${d.id} - ${d.name}`;
+      applyHighlight(d.id);
+      updateExplain(d.id);
+      centerOnNodeId(d.id);
+    });
+
+    simulation.on('tick', () => {
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+
+      // keep focus centered as sim settles a bit
+      if (currentFocusId != null && simulation.alpha() < 0.08) {
+        // no-op: we only center on explicit user action
+      }
+    });
+
+    // Apply current focus (if any)
+    applyHighlight(currentFocusId);
+    updateExplain(currentFocusId);
+
+    const focusPresent = currentFocusId == null || usedNodeIds.has(currentFocusId);
+    if (currentFocusId != null && !focusPresent) {
+      setStatus(`Focused user is filtered out by threshold ${threshold.toFixed(2)}. Lower the threshold to see them.`);
+    } else {
+      setStatus(`${nodes.length} users, ${edges.length} edges shown (threshold ${threshold.toFixed(2)}).`);
+    }
+
+    // Reset button returns to centered view
+    resetEl.onclick = () => {
+      currentFocusId = null;
+      focusInputEl.value = '';
+      svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+      render();
+    };
+
+    // External focus input
+    focusInputEl.onchange = () => {
+      const id = safeParseFocus(focusInputEl.value);
+      if (id == null) {
+        currentFocusId = null;
+        render();
+        return;
+      }
+      currentFocusId = id;
+      render();
+      // center after render built its sim
+      // (small delay ensures positions exist)
+      setTimeout(() => centerOnNodeId(id), 50);
+    };
+  }
+
+  function init() {
+    setStatus('Loading graph…');
+    fetch('/api/graph')
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        rawNodes = (data.nodes || []).slice();
+        rawEdges = (data.edges || []).slice();
+        nodeById = new Map(rawNodes.map(n => [n.id, n]));
+
+        // Populate datalist for quick focus
+        datalistEl.innerHTML = '';
+        for (const n of rawNodes) {
+          const opt = document.createElement('option');
+          opt.value = `${n.id} - ${n.name}`;
+          datalistEl.appendChild(opt);
+        }
+
+        thresholdEl.oninput = () => {
+          currentThreshold = parseFloat(thresholdEl.value || '0');
+          render();
+        };
+
+        render();
+      })
+      .catch(err => {
+        console.error(err);
+        setStatus('Failed to load graph data. Check server logs.');
+      });
+  }
+
+  init();
+})();
+</script>
+{% endblock %}

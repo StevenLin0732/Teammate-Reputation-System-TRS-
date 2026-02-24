@@ -25,6 +25,9 @@
               <a class="nav-link {% if request.path.startswith('/users') %}active{% endif %}" href="{{ url_for('users_page') }}">Users</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link {% if request.path.startswith('/graph') %}active{% endif %}" href="{{ url_for('graph_page') }}">Graph</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link {% if request.path.startswith('/lobbies') %}active{% endif %}" href="{{ url_for('lobbies_page') }}">Lobbies</a>
             </li>
           </ul>

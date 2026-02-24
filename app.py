@@ -228,8 +228,14 @@ def users_page():
     from models import User
 
     users = User.query.order_by(User.name.asc()).all()
-    rep_by_id = {u.id: u.reputation() for u in users}
+    trust_scores = User.compute_transitive_trust_scores()
+    rep_by_id = {u.id: u.reputation(trust_scores=trust_scores) for u in users}
     return render_template("users.html", users=users, rep_by_id=rep_by_id)
+
+
+@app.route("/graph")
+def graph_page():
+    return render_template("graph.html")
 
 
 @app.route("/users/<int:user_id>", methods=["GET", "POST"])
@@ -333,7 +339,8 @@ def user_profile(user_id):
             }
         )
 
-    overall_rep = user.reputation()
+    trust_scores = User.compute_transitive_trust_scores()
+    overall_rep = user.reputation(trust_scores=trust_scores)
     return render_template(
         "profile.html",
         user=user,
@@ -1185,7 +1192,116 @@ def user_reputation(user_id):
     from models import User
 
     user = User.query.get_or_404(user_id)
-    return jsonify(user.reputation())
+    trust_scores = User.compute_transitive_trust_scores()
+    return jsonify(user.reputation(trust_scores=trust_scores))
+
+
+@app.route("/api/graph")
+def api_graph():
+    """Return a deduped rating graph for demo visualization.
+
+    Nodes are users with a global trust score.
+    Edges are rater -> target with an averaged local weight in [0, 1].
+    """
+
+    from models import User, Rating, _normalize_0_to_10
+
+    trust_scores = User.compute_transitive_trust_scores()
+    users = User.query.order_by(User.id.asc()).all()
+
+    rep_by_id = {u.id: u.reputation(trust_scores=trust_scores) for u in users}
+
+    # Collapse multiple ratings between the same (rater, target)
+    pair_local_sum: dict[tuple[int, int], float] = {}
+    pair_local_count: dict[tuple[int, int], int] = {}
+    pair_contrib_sum: dict[tuple[int, int], float] = {}
+    pair_contrib_n: dict[tuple[int, int], int] = {}
+    pair_comm_sum: dict[tuple[int, int], float] = {}
+    pair_comm_n: dict[tuple[int, int], int] = {}
+    pair_wwa_sum: dict[tuple[int, int], float] = {}
+    pair_wwa_n: dict[tuple[int, int], int] = {}
+
+    rows = db.session.query(
+        Rating.rater_id,
+        Rating.target_user_id,
+        Rating.contribution,
+        Rating.communication,
+        Rating.would_work_again,
+    ).all()
+
+    for rater_id, target_user_id, contribution, communication, would_work_again in rows:
+        if rater_id is None or target_user_id is None:
+            continue
+        if rater_id == target_user_id:
+            continue
+
+        contrib_n = _normalize_0_to_10(contribution)
+        comm_n = _normalize_0_to_10(communication)
+        wwa_n = 1.0 if bool(would_work_again) else 0.0
+
+        local = (contrib_n + comm_n + wwa_n) / 3.0
+        if local <= 0.0:
+            continue
+
+        key = (int(rater_id), int(target_user_id))
+        pair_local_sum[key] = pair_local_sum.get(key, 0.0) + float(local)
+        pair_local_count[key] = pair_local_count.get(key, 0) + 1
+
+        if contribution is not None:
+            pair_contrib_sum[key] = pair_contrib_sum.get(key, 0.0) + float(contribution)
+            pair_contrib_n[key] = pair_contrib_n.get(key, 0) + 1
+        if communication is not None:
+            pair_comm_sum[key] = pair_comm_sum.get(key, 0.0) + float(communication)
+            pair_comm_n[key] = pair_comm_n.get(key, 0) + 1
+
+        pair_wwa_sum[key] = pair_wwa_sum.get(key, 0.0) + (1.0 if bool(would_work_again) else 0.0)
+        pair_wwa_n[key] = pair_wwa_n.get(key, 0) + 1
+
+    nodes = [
+        {
+            "id": u.id,
+            "name": u.name,
+            "trust": float(trust_scores.get(u.id, 0.0)),
+            "reputation": rep_by_id.get(u.id),
+            "reputation_overall": (
+                (
+                    (_normalize_0_to_10((rep_by_id.get(u.id) or {}).get("contribution_avg"))
+                    + _normalize_0_to_10((rep_by_id.get(u.id) or {}).get("communication_avg"))
+                    + float((rep_by_id.get(u.id) or {}).get("would_work_again_ratio") or 0.0))
+                    / 3.0
+                )
+                if rep_by_id.get(u.id) is not None
+                else 0.0
+            ),
+        }
+        for u in users
+    ]
+
+    edges = []
+    for (rater_id, target_user_id), s in pair_local_sum.items():
+        n = pair_local_count[(rater_id, target_user_id)]
+        contrib_avg = None
+        comm_avg = None
+        if pair_contrib_n.get((rater_id, target_user_id), 0):
+            contrib_avg = pair_contrib_sum[(rater_id, target_user_id)] / float(pair_contrib_n[(rater_id, target_user_id)])
+        if pair_comm_n.get((rater_id, target_user_id), 0):
+            comm_avg = pair_comm_sum[(rater_id, target_user_id)] / float(pair_comm_n[(rater_id, target_user_id)])
+        wwa_ratio = (
+            pair_wwa_sum.get((rater_id, target_user_id), 0.0) / float(pair_wwa_n.get((rater_id, target_user_id), 1))
+        )
+        edges.append(
+            {
+                "source": rater_id,
+                "target": target_user_id,
+                "weight": float(s / float(n)),
+                "count": int(n),
+                "contribution_avg": contrib_avg,
+                "communication_avg": comm_avg,
+                "would_work_again_ratio": float(wwa_ratio),
+            }
+        )
+
+    return jsonify({"nodes": nodes, "edges": edges})
 
 
 @app.route("/api/lobbies/<int:lobby_id>/join-requests", methods=["POST"])

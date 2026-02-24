@@ -38,6 +38,12 @@ python app.py
 
 5. Open your browser at http://127.0.0.1:5000/ to view the simple frontend demo.
 
+For a demo-friendly visualization of how reputations compose from the rating graph, open:
+
+- http://127.0.0.1:5000/graph — interactive rater→ratee network (zoom/pan, threshold slider, click-to-focus)
+
+(The underlying JSON is available at `GET /api/graph`.)
+
 After seeding, the database includes many users with a default password of `123456`.
 
 ### Full stack (Next.js + Flask)
@@ -75,6 +81,8 @@ The UI pages use server-rendered HTML, but the app also exposes JSON endpoints y
 - `GET /api/users/<id>` — get one user (includes list of participated lobbies)
 - `GET /api/users/<id>/reputation` — aggregate reputation for the user
 
+See [Reputation weighting (transitive)](#reputation-weighting-transitive).
+
 ### Lobbies / Teams
 
 - `GET /api/lobbies` — list lobbies
@@ -101,6 +109,96 @@ These endpoints exist for a request → decision flow:
 	- Requires: the lobby is marked finished
 	- Requires: rater and target are team members; cannot rate yourself
 	- Body: `{ "rater_id": 1, "target_user_id": 2, "contribution": 8, "communication": 9, "would_work_again": true, "comment": "..." }`
+
+## Reputation weighting (transitive)
+
+The reputation returned by `GET /api/users/<id>/reputation` is a **transitively weighted** aggregate:
+
+- Each incoming rating is weighted by the *rater’s* global trust score.
+- Global trust scores are computed from the full rater→target graph using a PageRank/EigenTrust-style power iteration with damping (default `0.85`).
+
+Implementation: see `User.compute_transitive_trust_scores()` and `User.reputation()` in `models.py`.
+
+### How it works
+
+We treat ratings as a directed graph: each `Rating` row is an edge **rater → target**.
+
+1. **Local trust (edge weight).** For each rating, we compute a non-negative “local trust” weight in `[0,1]`:
+   - `contribution` and `communication` are normalized from the app’s 0–10 scale into `[0,1]`.
+   - `would_work_again` is mapped to 1 (true) or 0 (false).
+   - The current implementation averages those three values.
+
+2. **Row-normalize outgoing trust.** For each rater `i`, we normalize their outgoing weights so that the total trust they distribute sums to 1:
+   ```text
+   W_ij = c_ij / sum_k(c_ik)
+   ```
+   where `c_ij >= 0` is the accumulated local trust from user `i` to user `j`.
+
+  Implementation note (simple collusion/spam mitigation): if there are multiple `Rating` rows between the same rater `i` and target `j` (e.g., across multiple teams/lobbies), the backend collapses them into a single edge by averaging their local trust values, instead of summing them. This prevents repeated interactions from inflating trust purely by volume.
+
+3. **Compute global trust via damping + power iteration.** We compute a global trust vector `t` that is the stationary distribution of a damped walk over the rating graph (PageRank-style):
+   ```text
+   t <- (1 - d) * p + d * (W^T * t)
+   ```
+   - `d` is the damping factor (default 0.85).
+   - `p` is a “base”/personalization distribution. This prototype uses a **uniform** `p`.
+   - Users with no outgoing trust (“dangling nodes”) have their probability mass redistributed uniformly.
+
+4. **Use trust as weights when aggregating reputation.** When computing a user’s reputation, each incoming rating from rater `r` is weighted by `t[r]`:
+   - `contribution_avg` and `communication_avg` become trust-weighted averages (still on the 0–10 scale).
+   - `would_work_again_ratio` becomes a trust-weighted fraction.
+
+Notes:
+
+- Trust scores are **relative weights** (they are normalized to sum to 1 across all users), not a 0–10 “reputation” number.
+- `rating_count` in the response is the raw count of received ratings; the averages/ratios are computed using trust weights.
+
+### Why this is (reasonably) reliable
+
+This approach is a standard pattern in reputation/trust systems: compute a *global* trust score from the whole graph, then use it to weight votes/ratings.
+
+- **Transitivity.** If trustworthy users (high `t`) rate someone positively, that boosts the target’s trust, which then increases the influence of the target’s future ratings.
+- **Damping stabilizes the computation.** The `(1 - d) * p` term prevents the system from getting “stuck” in disconnected components and makes the iteration converge to a unique fixed point under typical conditions.
+- **No negative trust in this prototype.** Edge weights are clamped to `[0,1]` before normalization, so the algorithm can be interpreted as a probability flow on a graph.
+
+That said: **this is not a Sybil-proof magic bullet**. It makes “new/unknown” accounts tend to have low influence *relative to accounts with lots of trusted inbound edges*, but if identities are cheap, attackers can still manipulate the graph.
+
+### Parameters and performance
+
+- Damping: `damping=0.85` (higher = more influence from the graph; lower = closer to uniform trust).
+- Iteration: `max_iter=50`, `tol=1e-10`.
+- Complexity: roughly `O(E * I)` per computation, where `E` is number of rating edges and `I` is number of iterations.
+- Optimization already applied: for pages that show many users, the backend computes trust scores once per request and passes the map into `User.reputation()`.
+
+### Threat model: potential attacks (and mitigations)
+
+Common ways reputation systems like this get attacked:
+
+- **Sybil / sockpuppet flooding.** Create many fake accounts that rate each other and then target a victim.
+  - Mitigations: make identities costly (email/phone verification, rate limits), require participation/proof before rating, detect dense near-cliques of new accounts, cap per-period rating impact.
+
+- **Collusion rings.** A small group of real accounts coordinate to inflate each other.
+  - Mitigations: require diversity of raters (e.g., ratings must come from multiple independent teams/lobbies), down-weight repeated interactions between the same pairs, audit unusual reciprocation patterns.
+  - Implemented in this prototype: repeated ratings from the same rater to the same target are collapsed (averaged) so they don’t gain extra influence just by being repeated.
+
+- **Camouflage / “long con”.** Behave honestly until trusted, then attack.
+  - Mitigations: time decay on trust edges, anomaly detection on sudden behavior changes, manual review flags for large jumps.
+
+- **Whitewashing.** Abandon an account after bad ratings and re-register.
+  - Mitigations: stronger identity binding and friction, keep some continuity signals (e.g., verified email), delay full influence for new accounts.
+
+- **Retaliation / harassment ratings.** Use ratings to punish teammates.
+  - Mitigations: require proof of collaboration, provide dispute/reporting flows, consider hiding individual ratings and only showing aggregates.
+
+If you want this to be more attack-resistant, the next step is usually to add **identity friction** and/or choose a non-uniform “pre-trusted” personalization distribution `p` (a key idea in EigenTrust), rather than letting trust originate uniformly.
+
+### References
+
+- S. D. Kamvar, M. T. Schlosser, H. Garcia-Molina. *The EigenTrust Algorithm for Reputation Management in P2P Networks*. WWW 2003. https://nlp.stanford.edu/pubs/eigentrust.pdf
+- L. Page, S. Brin, R. Motwani, T. Winograd. *The PageRank Citation Ranking: Bringing Order to the Web*. Stanford Tech Report, 1999. http://ilpubs.stanford.edu:8090/422/1/1999-66.pdf
+- R. Levien. *Attack Resistant Trust Metrics*. PhD thesis, 2004. https://levien.com/thesis/compact.pdf
+- J. R. Douceur. *The Sybil Attack*. In: *Peer-to-Peer Systems (IPTPS 2002)*. DOI: 10.1007/3-540-45748-8_24 ; accessible copy: https://archive.org/details/peertopeersystem0000iptp/page/251
+- J. M. Kleinberg. *Authoritative Sources in a Hyperlinked Environment*. 1998 (journal version). See discussion of link-based ranking pitfalls and simple anti-collusion heuristics such as limiting multiple same-source links to a target. https://www.cs.cornell.edu/home/kleinber/auth.pdf
 
 ## Demo Pages (HTML)
 
