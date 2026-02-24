@@ -120,6 +120,23 @@ def _send_email(subject: str, to_email: str, body: str):
         print("Failed to send email:", e)
 
 
+def _serialize_user(user):
+    # prefer model-provided to_dict when available, otherwise build a minimal dict
+    try:
+        if hasattr(user, "to_dict"):
+            d = user.to_dict()
+        else:
+            keys = ["id", "name", "email", "major", "year", "bio", "contact", "phone"]
+            d = {k: getattr(user, k, None) for k in keys}
+        try:
+            d["reputation"] = user.reputation()
+        except Exception:
+            pass
+        return d
+    except Exception:
+        return {"id": getattr(user, "id", None), "name": getattr(user, "name", None)}
+
+
 @app.context_processor
 def inject_current_user():
     return {"current_user": get_current_user()}
@@ -144,20 +161,42 @@ def login():
         password = request.form.get("password") or ""
         users = User.query.order_by(User.name.asc()).all()
 
+        accept = request.headers.get("Accept", "")
+        accept_json = (
+            "application/json" in accept
+            or request.is_json
+            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+        # support JSON or form-encoded POST bodies for API clients (Next.js)
+        json_data = request.get_json(silent=True) or {}
+        if json_data:
+            email = (json_data.get("email") or "").strip()
+            password = json_data.get("password") or ""
+
         if not email or not password:
+            if accept_json:
+                return jsonify({"error": "email_password_required"}), 400
             flash("Email and password are required.", "warning")
             return render_template("login.html", users=users)
 
         user = User.query.filter_by(email=email).first()
         if not user or not getattr(user, "password_hash", None):
+            if accept_json:
+                return jsonify({"error": "invalid_credentials"}), 401
             flash("Invalid credentials.", "danger")
             return render_template("login.html", users=users)
 
         if not check_password_hash(user.password_hash, password):
+            if accept_json:
+                return jsonify({"error": "invalid_credentials"}), 401
             flash("Invalid credentials.", "danger")
             return render_template("login.html", users=users)
 
         session["user_id"] = user.id
+        # ensure session cookie is sent; API clients will receive Set-Cookie
+        if accept_json:
+            return jsonify(_serialize_user(user)), 200
+
         flash(f"Logged in as {user.name}.", "success")
         next_url = request.args.get("next")
         return redirect(next_url or url_for("me"))
@@ -166,6 +205,12 @@ def login():
 @app.route("/logout", methods=["POST"])
 def logout():
     session.pop("user_id", None)
+    accept = request.headers.get("Accept", "")
+    accept_json = ("application/json" in accept) or (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    )
+    if accept_json:
+        return jsonify({"status": "ok"}), 204
     flash("Logged out.", "secondary")
     return redirect(url_for("index"))
 
@@ -218,8 +263,18 @@ def register():
 @app.route("/me")
 def me():
     user = get_current_user()
+    accept = request.headers.get("Accept", "")
+    accept_json = ("application/json" in accept) or (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    )
+
     if not user:
+        if accept_json:
+            return jsonify({"error": "not_logged_in"}), 401
         return redirect(url_for("login", next=url_for("me")))
+
+    if accept_json:
+        return jsonify(_serialize_user(user))
     return redirect(url_for("user_profile", user_id=user.id))
 
 

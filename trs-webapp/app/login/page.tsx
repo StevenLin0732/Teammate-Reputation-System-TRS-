@@ -37,8 +37,9 @@ function LoginPageContent() {
       const next = searchParams.get('next') || '/me';
       router.push(next);
     } catch (err) {
-      setError('Invalid credentials. Please try again.');
-      toast.error('Login failed. Check your email and password.');
+      const msg = err instanceof Error ? err.message : 'Login failed';
+      setError(msg || 'Invalid credentials. Please try again.');
+      toast.error(msg || 'Login failed. Check your email and password.');
     } finally {
       setLoading(false);
     }

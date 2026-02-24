@@ -7,6 +7,9 @@ async function fetchWithCredentials(
   options: RequestInit = {}
 ): Promise<Response> {
   const headers = new Headers(options.headers);
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
@@ -25,15 +28,23 @@ export async function login(email: string, password: string): Promise<void> {
   formData.append('email', email);
   formData.append('password', password);
 
-  const response = await fetch(`${API_BASE}/login`, {
+  const response = await fetchWithCredentials(`${API_BASE}/login`, {
     method: 'POST',
-    credentials: 'include',
     body: formData,
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error('Login failed');
+    let msg = 'Login failed';
+    try {
+      const data = await response.json();
+      if (data && data.error) msg = data.error;
+    } catch {
+      try {
+        const text = await response.text();
+        if (text) msg = text;
+      } catch {}
+    }
+    throw new Error(msg);
   }
 }
 
@@ -56,7 +67,6 @@ export async function register(data: {
 
   const response = await fetch(`${API_BASE}/register`, {
     method: 'POST',
-    credentials: 'include',
     body: formData,
   });
 
@@ -73,8 +83,7 @@ export async function logout(): Promise<void> {
 
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    const response = await fetch(`${API_BASE}/me`, {
-      credentials: 'include',
+    const response = await fetchWithCredentials(`${API_BASE}/me`, {
       redirect: 'manual',
     });
     // If server returns JSON user object (common), return it
@@ -299,9 +308,8 @@ export async function updateLobby(
     formData.append('contest_link', data.contest_link);
   }
 
-  const response = await fetch(`${API_BASE}/lobbies/${lobbyId}`, {
+  const response = await fetchWithCredentials(`${API_BASE}/lobbies/${lobbyId}`, {
     method: 'POST',
-    credentials: 'include',
     body: formData,
   });
 
@@ -314,9 +322,8 @@ export async function lockTeam(lobbyId: number): Promise<void> {
   const formData = new FormData();
   formData.append('action', 'lock_team');
 
-  const response = await fetch(`${API_BASE}/lobbies/${lobbyId}`, {
+  const response = await fetchWithCredentials(`${API_BASE}/lobbies/${lobbyId}`, {
     method: 'POST',
-    credentials: 'include',
     body: formData,
   });
 
@@ -329,9 +336,8 @@ export async function finishContest(lobbyId: number): Promise<void> {
   const formData = new FormData();
   formData.append('action', 'finish_contest');
 
-  const response = await fetch(`${API_BASE}/lobbies/${lobbyId}`, {
+  const response = await fetchWithCredentials(`${API_BASE}/lobbies/${lobbyId}`, {
     method: 'POST',
-    credentials: 'include',
     body: formData,
   });
 
