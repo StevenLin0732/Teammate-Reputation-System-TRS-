@@ -1,28 +1,34 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { createLobby, getCurrentUser } from '@/lib/api';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { createLobby, getCurrentUser } from "@/lib/api";
 
 export default function CreateLobbyPage() {
   const router = useRouter();
-  const [title, setTitle] = useState('');
-  const [contestLink, setContestLink] = useState('');
-  const [error, setError] = useState('');
+  const [title, setTitle] = useState("");
+  const [contestLink, setContestLink] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     if (!title.trim()) {
-      setError('Title is required');
+      setError("Title is required");
       setLoading(false);
       return;
     }
@@ -30,17 +36,16 @@ export default function CreateLobbyPage() {
     try {
       const user = await getCurrentUser();
       if (!user) {
-        router.push('/login?next=/lobbies/new');
+        router.push("/login?next=/lobbies/new");
         return;
       }
       await createLobby({
         title: title.trim(),
         contest_link: contestLink.trim() || undefined,
-        leader_id: user.id,
       });
-      router.push('/lobbies');
+      router.push("/lobbies");
     } catch (err) {
-      setError('Failed to create lobby. Please try again.');
+      setError("Failed to create lobby. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -52,7 +57,9 @@ export default function CreateLobbyPage() {
         <div className="flex items-end justify-between mb-4">
           <div>
             <h1 className="text-2xl font-semibold mb-1">Create a lobby</h1>
-            <div className="text-muted-foreground">Start recruiting for a contest or project.</div>
+            <div className="text-muted-foreground">
+              Start recruiting for a contest or project.
+            </div>
           </div>
           <Link href="/lobbies">
             <Button variant="outline" size="sm">
@@ -89,7 +96,7 @@ export default function CreateLobbyPage() {
                 </div>
               )}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Creating...' : 'Create lobby'}
+                {loading ? "Creating..." : "Create lobby"}
               </Button>
             </form>
           </CardContent>

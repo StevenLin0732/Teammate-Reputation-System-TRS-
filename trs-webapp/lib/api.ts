@@ -1,6 +1,24 @@
 import { User, Lobby, Reputation, Submission, Rating } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:5000";
+// const API_BASE = typeof window === "undefined" ? "http://127.0.0.1:5000" : "";
+const API_BASE = "http://localhost:5000";
+
+export async function updateUserProfile(
+	userId: number,
+	data: {
+		name?: string;
+		major?: string;
+		year?: string;
+		bio?: string;
+		contact?: string;
+		phone?: string;
+	},
+): Promise<User> {
+	return fetchWithCredentials<User>(`${API_BASE}/api/users/${userId}`, {
+		method: "PATCH",
+		body: JSON.stringify(data),
+	});
+}
 
 async function fetchWithCredentials<T = any>(
 	url: string,
@@ -24,11 +42,10 @@ async function fetchWithCredentials<T = any>(
 			const data = await response.json();
 			if (data?.error) message = data.error;
 		} catch {
-			// ignoring JSON parse errors
+			// ignore JSON parse errors
 		}
 		throw new Error(message);
 	}
-
 	if (response.status === 204) {
 		return undefined as T;
 	}
