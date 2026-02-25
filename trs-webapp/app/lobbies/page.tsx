@@ -48,6 +48,9 @@ export default async function LobbiesPage() {
                   <CardTitle className="mb-1">{lobby.title}</CardTitle>
                   <div className="flex gap-1 flex-wrap justify-end">
                     <Badge variant="default">{lobby.participant_count || 0} members</Badge>
+                    {lobby.team_reputation !== undefined && (
+                      <Badge variant="secondary">Team Rep {lobby.team_reputation.toFixed(1)}</Badge>
+                    )}
                     {lobby.finished && <Badge variant="outline">Finished</Badge>}
                     {lobby.team_locked && !lobby.finished && (
                       <Badge variant="outline">Locked</Badge>
@@ -82,7 +85,10 @@ export default async function LobbiesPage() {
                         </Button>
                       )}
                       {!lobby.role && !lobby.finished && !lobby.team_locked && (
-                        <JoinLobbyButton lobbyId={lobby.id} />
+                        <JoinLobbyButton
+                          lobbyId={lobby.id}
+                          requestStatus={lobby.join_request_status}
+                        />
                       )}
                     </>
                   )}

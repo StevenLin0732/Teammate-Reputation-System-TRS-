@@ -52,6 +52,31 @@ export function Navbar({ currentUser }: NavbarProps) {
               >
                 Lobbies
               </Link>
+              <Link
+                href="/graph"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/graph') ? 'bg-gray-800' : 'hover:bg-gray-800'
+                  }`}
+              >
+                Graph
+              </Link>
+              {currentUser && (
+                <>
+                  <Link
+                    href="/join-requests"
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/join-requests') ? 'bg-gray-800' : 'hover:bg-gray-800'
+                      }`}
+                  >
+                    Join Requests
+                  </Link>
+                  <Link
+                    href="/invites"
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/invites') ? 'bg-gray-800' : 'hover:bg-gray-800'
+                      }`}
+                  >
+                    Invites
+                  </Link>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">

@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { getLobby, getCurrentUser, getUser } from '@/lib/api';
+import { getLobby, getCurrentUser, getUser, getJoinRequests, decideJoinRequest, createJoinRequest } from '@/lib/api';
 import { Lobby, User } from '@/lib/types';
+import type { JoinRequest } from '@/lib/api';
+import { toast } from 'sonner';
 
-const API_BASE = typeof window !== 'undefined' 
+const API_BASE = typeof window !== 'undefined'
   ? (process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000')
   : 'http://localhost:5000';
 
@@ -28,6 +30,8 @@ export default function LobbyDetailPage({
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [leader, setLeader] = useState<User | null>(null);
   const [members, setMembers] = useState<User[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [joinRequestUsers, setJoinRequestUsers] = useState<Map<number, User>>(new Map());
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string | null>(null);
 
@@ -40,12 +44,12 @@ export default function LobbyDetailPage({
         ]);
         setLobby(lobbyData);
         setCurrentUser(user);
-        
+
         if (lobbyData.leader_id) {
           try {
             const leaderData = await getUser(lobbyData.leader_id);
             setLeader(leaderData);
-          } catch {}
+          } catch { }
         }
 
         if (lobbyData.participants && lobbyData.participants.length > 0) {
@@ -58,6 +62,26 @@ export default function LobbyDetailPage({
             if (teammates.length > 0) {
               setActiveTab(teammates[0]!.id.toString());
             }
+          }
+        }
+
+        // Load join requests if user is the leader
+        if (user && lobbyData.leader_id === user.id) {
+          try {
+            const requests = await getJoinRequests(lobbyId, 'pending');
+            setJoinRequests(requests);
+
+            // Load user data for each request
+            const userMap = new Map<number, User>();
+            for (const req of requests) {
+              try {
+                const userData = await getUser(req.requester_id);
+                userMap.set(req.requester_id, userData);
+              } catch { }
+            }
+            setJoinRequestUsers(userMap);
+          } catch (err) {
+            console.error('Failed to load join requests', err);
           }
         }
       } catch (err) {
@@ -77,14 +101,14 @@ export default function LobbyDetailPage({
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-    
+
     try {
       const response = await fetch(form.action, {
         method: 'POST',
         credentials: 'include',
         body: formData,
       });
-      
+
       if (response.ok || response.status === 302) {
         router.refresh();
         window.location.reload();
@@ -120,11 +144,21 @@ export default function LobbyDetailPage({
             </Button>
           </Link>
           {currentUser && !isMember && !lobby.finished && !lobby.team_locked && (
-            <form action={`${API_BASE}/lobbies/${lobbyId}/join`} method="post" onSubmit={handleFormSubmit}>
-              <Button size="sm" type="submit">
-                Join lobby
-              </Button>
-            </form>
+            <Button
+              size="sm"
+              onClick={async () => {
+                try {
+                  await createJoinRequest(lobbyId);
+                  toast.success('Join request submitted!');
+                  router.refresh();
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : 'Failed to submit request';
+                  toast.error(message);
+                }
+              }}
+            >
+              Request to join
+            </Button>
           )}
         </div>
       </div>
@@ -228,6 +262,69 @@ export default function LobbyDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {isLeader && joinRequests.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase text-muted-foreground">Join Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {joinRequests.map((request) => {
+                    const requester = joinRequestUsers.get(request.requester_id);
+                    return (
+                      <div
+                        key={request.id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div>
+                          <div className="font-semibold">{requester?.name || 'Unknown User'}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Status: <Badge variant="outline">{request.status}</Badge>
+                          </div>
+                        </div>
+                        {request.status === 'pending' && !lobby.team_locked && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await decideJoinRequest(lobbyId, request.id, 'accept');
+                                  toast.success('Request accepted!');
+                                  router.refresh();
+                                } catch (err) {
+                                  const message = err instanceof Error ? err.message : 'Failed to accept';
+                                  toast.error(message);
+                                }
+                              }}
+                            >
+                              Accept
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await decideJoinRequest(lobbyId, request.id, 'reject');
+                                  toast.success('Request rejected');
+                                  router.refresh();
+                                } catch (err) {
+                                  const message = err instanceof Error ? err.message : 'Failed to reject';
+                                  toast.error(message);
+                                }
+                              }}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="lg:col-span-3 space-y-4">
@@ -356,11 +453,10 @@ export default function LobbyDetailPage({
                           <button
                             key={teammate.id}
                             onClick={() => setActiveTab(teammate.id.toString())}
-                            className={`w-full text-left p-2 rounded-lg border ${
-                              activeTab === teammate.id.toString()
+                            className={`w-full text-left p-2 rounded-lg border ${activeTab === teammate.id.toString()
                                 ? 'border-green-500 bg-green-50'
                                 : 'border-gray-200'
-                            }`}
+                              }`}
                           >
                             <div className="flex justify-between items-center">
                               <span className="font-semibold">{teammate.name}</span>

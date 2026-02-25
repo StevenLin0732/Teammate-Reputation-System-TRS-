@@ -345,3 +345,114 @@ export async function finishContest(lobbyId: number): Promise<void> {
     throw new Error('Failed to finish contest');
   }
 }
+export interface JoinRequest {
+  id: number;
+  lobby_id: number;
+  team_id: number;
+  requester_id: number;
+  status: 'pending' | 'accepted' | 'rejected' | 'canceled';
+  created_at?: string;
+}
+
+export async function createJoinRequest(
+  lobbyId: number
+): Promise<JoinRequest> {
+  const response = await fetchWithCredentials(
+    `${API_BASE}/api/lobbies/${lobbyId}/join-requests`,
+    {
+      method: 'POST',
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || 'Failed to create join request');
+  }
+  return response.json();
+}
+
+export async function getJoinRequests(
+  lobbyId: number,
+  status?: string
+): Promise<JoinRequest[]> {
+  const url = new URL(`${API_BASE}/api/lobbies/${lobbyId}/join-requests`);
+  if (status) {
+    url.searchParams.set('status', status);
+  }
+
+  const response = await fetchWithCredentials(url.toString());
+  if (!response.ok) {
+    throw new Error('Failed to fetch join requests');
+  }
+  return response.json();
+}
+
+export async function decideJoinRequest(
+  lobbyId: number,
+  requestId: number,
+  decision: 'accept' | 'reject'
+): Promise<JoinRequest> {
+  const response = await fetchWithCredentials(
+    `${API_BASE}/api/lobbies/${lobbyId}/join-requests/${requestId}/decision`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ decision }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to decide on join request');
+  }
+  return response.json();
+}
+
+export interface GraphNode {
+  id: number;
+  name: string;
+  trust: number;
+  reputation: Reputation | null;
+  reputation_overall: number;
+}
+
+export interface GraphEdge {
+  source: number;
+  target: number;
+  weight: number;
+  count: number;
+  contribution_avg: number | null;
+  communication_avg: number | null;
+  would_work_again_ratio: number;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export async function getGraphData(): Promise<GraphData> {
+  const response = await fetchWithCredentials(`${API_BASE}/api/graph`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch graph data');
+  }
+  return response.json();
+}
+
+export interface InviteSuggestion {
+  id: number;
+  name: string;
+  email: string;
+  reputation: number;
+  distance: number;
+}
+
+export async function getInviteSuggestions(
+  lobbyId: number
+): Promise<InviteSuggestion[]> {
+  const response = await fetchWithCredentials(
+    `${API_BASE}/api/lobbies/${lobbyId}/invite-suggestions`
+  );
+  if (!response.ok) {
+    throw new Error('Failed to fetch invite suggestions');
+  }
+  return response.json();
+}

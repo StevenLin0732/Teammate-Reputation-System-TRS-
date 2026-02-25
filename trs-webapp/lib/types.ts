@@ -26,6 +26,9 @@ export interface Lobby {
   participant_count?: number;
   participants?: User[];
   team_locked?: boolean;
+  team_reputation?: number;
+  rep_distance?: number;
+  join_request_status?: string;
   role?: string;
 }
 
