@@ -46,6 +46,32 @@ export async function login(email: string, password: string): Promise<void> {
     }
     throw new Error(msg);
   }
+  // On success, backend may return a JSON user object (API clients) or may
+  // follow a redirect to the user's profile page. Handle both cases and
+  // navigate the browser to the user's profile when running in the client.
+  try {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const user = await response.json();
+      if (typeof window !== 'undefined' && user && user.id) {
+        window.location.href = `/users/${user.id}`;
+      }
+      return;
+    }
+
+    // If fetch followed redirects, `response.url` may be the final URL.
+    const finalUrl = response.url || '';
+    if (finalUrl.includes('/users/')) {
+      const maybe = finalUrl.split('/users/')[1];
+      const userId = parseInt(maybe, 10);
+      if (!isNaN(userId) && typeof window !== 'undefined') {
+        window.location.href = `/users/${userId}`;
+      }
+    }
+    // otherwise, nothing to do for client navigation here; caller can handle it
+  } catch (e) {
+    // ignore navigation errors
+  }
 }
 
 export async function register(data: {
